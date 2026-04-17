@@ -73,3 +73,17 @@ crashlytics-build.properties
 # Temporary auto-generated Android Assets
 /[Aa]ssets/[Ss]treamingAssets/aa.meta
 /[Aa]ssets/[Ss]treamingAssets/aa/*
+
+# В конец файла .gitignore добавь:
+
+# Large assets
+*.fbx
+*.wav
+*.psd
+*.blend
+*.max
+*.obj
+Assets/TENKOKU*/
+Assets/TextMesh*/
+Assets/Scenes/main map/
+Assets/Scenes/SampleScene/
