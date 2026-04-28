@@ -193,8 +193,6 @@ public class ItemContextMenu : MonoBehaviour
         canvasGroup.blocksRaycasts = false;
         canvasGroup.interactable = false;
         selectedItem = null;
-        
-        Debug.Log($"HIDE CONTEXT MENU вызван из: {Time.frameCount}");
     }
 
     public bool IsOpen()
@@ -248,23 +246,34 @@ public class ItemContextMenu : MonoBehaviour
     {
         if (selectedItem == null) return;
 
-        Debug.Log($"🗑️ DROP: {selectedItem.itemName}");
-
-        SpawnDroppedItem(selectedItem);
-
-        // ИСПРАВЛЕНИЕ: используем новую систему инвентаря InventorySystemNew!
         InventorySystemNew invSystem = FindFirstObjectByType<InventorySystemNew>();
-        if (invSystem != null)
+        if (invSystem == null) 
         {
-            invSystem.RemoveItem(selectedItem.itemName, 1);
+            Debug.LogError("❌ InventorySystemNew НЕ НАЙДЕН!");
+            HideMenu();
+            return;
         }
+
+        // 🎯 НОВОЕ: Получаем ВСЕХ количество предметов в стопке
+        int totalCount = invSystem.GetItemCount(selectedItem.itemName);
+        
+        Debug.Log($"🗑️ DROP ALL: {selectedItem.itemName} x{totalCount}");
+
+        // Спавним ВСЕ предметы из стопки
+        for (int i = 0; i < totalCount; i++)
+        {
+            SpawnDroppedItem(selectedItem);
+        }
+
+        // Удаляем ВСЮ стопку из инвентаря
+        invSystem.RemoveItem(selectedItem.itemName, totalCount);
 
         // Если это оружие что в руках - разэкипируем
         EquipmentManager em = FindFirstObjectByType<EquipmentManager>();
         if (em)
             em.OnItemDropped(selectedItem);
 
-        // ✅ НОВОЕ: Удаляем предмет из хотбара, если он там был
+        // Удаляем предмет из хотбара, если он там был
         if (HotbarManager.instance != null)
         {
             HotbarManager.instance.RemoveItemFromHotbar(selectedItem);

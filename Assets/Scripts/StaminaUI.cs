@@ -15,19 +15,33 @@ public class StaminaUI : MonoBehaviour
     [SerializeField] private float fillAnimationSpeed = 5f; // Скорость плавного заполнения полоски (0-1 за N сек)
 
     private float targetFillAmount = 1f;
+    // ⚡ ОПТИМИЗАЦИЯ: кэшируем предыдущие значения для проверки изменений
+    private float lastStamina = -1f;
+    private bool lastCanSprint = true;
 
     void Update()
     {
         if (playerMovement != null && staminaImage != null)
         {
-            // Вычисляем целевой процент: текущая стамина деленная на максимальную (от 0.0 до 1.0)
-            targetFillAmount = playerMovement.GetCurrentStamina() / playerMovement.GetMaxStamina();
+            // ⚡ ОПТИМИЗАЦИЯ: обновляем только если стамина изменилась
+            float currentStamina = playerMovement.GetCurrentStamina();
+            if (currentStamina != lastStamina)
+            {
+                targetFillAmount = currentStamina / playerMovement.GetMaxStamina();
+                lastStamina = currentStamina;
+            }
             
             // ПЛАВНО переводим полоску в целевую позицию (вместо резкого скачка)
             staminaImage.fillAmount = Mathf.Lerp(staminaImage.fillAmount, targetFillAmount, Time.deltaTime * fillAnimationSpeed);
 
-            // БОНУС: если стамина кончилась (нельзя бегать), делаем полоску красной
-            if (!playerMovement.CanSprint())
+            // ⚡ ОПТИМИЗАЦИЯ: обновляем цвет только если состояние спринта изменилось
+            bool canSprint = playerMovement.CanSprint();
+            if (canSprint != lastCanSprint)
+            {
+                lastCanSprint = canSprint;
+            }
+            
+            if (!canSprint)
             {
                 // Плавный переход в красный
                 staminaImage.color = Color.Lerp(staminaImage.color, Color.red, Time.deltaTime * 3f);

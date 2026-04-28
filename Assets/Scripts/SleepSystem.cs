@@ -17,8 +17,17 @@ public class SleepSystem : MonoBehaviour
     private System.Collections.IEnumerator SleepRoutine()
     {
         // 1. Включаем черную панель и затемняем экран
+        if (fadeScreen == null)
+        {
+            Debug.LogError("❌ SleepSystem: fadeScreen не назначена в Инспекторе!");
+            yield break;
+        }
+        
         fadeScreen.gameObject.SetActive(true);
         yield return StartCoroutine(Fade(0, 1));
+
+        // ✅ КВЕСТ: Выжить ночь - завершено!
+        QuestManager.instance?.CompleteQuest("quest_survive_night");
 
         // --- ЛОГИКА СНА С ТЕНКОКУ ---
         // Ищем Тенкоку на сцене
@@ -26,6 +35,8 @@ public class SleepSystem : MonoBehaviour
         
         if (tenkoku != null)
         {
+            Debug.Log("🛌 Tenkoku найден! Текущее время: " + tenkoku.currentHour + ":" + tenkoku.currentMinute);
+            
             float startTime = tenkoku.currentHour;
             float wakeUpTime = 8f; // Просыпаемся в 8 утра
             float hoursSlept = 0f;
@@ -35,6 +46,8 @@ public class SleepSystem : MonoBehaviour
                 hoursSlept = (24f - startTime) + wakeUpTime;
             else 
                 hoursSlept = wakeUpTime - startTime;
+
+            Debug.Log($"😴 Проспали {hoursSlept} часов (эффективность сна)");
 
             // Считаем эффективность сна для лечения (максимум 10 часов)
             float maxSleepCycle = 10f;
@@ -46,11 +59,21 @@ public class SleepSystem : MonoBehaviour
                 float missingHealth = PlayerHealth.instance.maxHealth - PlayerHealth.instance.currentHealth;
                 float healthToRestore = missingHealth * sleepEfficiency;
                 PlayerHealth.instance.Heal(healthToRestore);
+                Debug.Log($"💚 Восстановлено {healthToRestore} HP");
+            }
+            else
+            {
+                Debug.LogWarning("⚠️ PlayerHealth.instance не найден!");
             }
 
             // ПЕРЕМОТКА ВРЕМЕНИ НА УТРО В ТЕНКОКУ
-            tenkoku.currentHour = 8; // Убрали переменную и просто написали 8
-            tenkoku.currentMinute = 0; // Убрали f
+            tenkoku.currentHour = 8;
+            tenkoku.currentMinute = 0;
+            Debug.Log("⏰ Время установлено на 08:00");
+        }
+        else
+        {
+            Debug.LogError("❌ Tenkoku не найден на сцене! Система сна не работает!");
         }
 
         yield return new WaitForSeconds(1.5f); // Пауза в темноте для эффекта
@@ -58,6 +81,9 @@ public class SleepSystem : MonoBehaviour
         // 2. Осветляем экран и выключаем панель
         yield return StartCoroutine(Fade(1, 0));
         fadeScreen.gameObject.SetActive(false);
+
+        // ✅ КВЕСТ: Найти тайник - активирован!
+        QuestManager.instance?.ActivateQuest("quest_find_stash");
     }
 
     private IEnumerator Fade(float start, float end)

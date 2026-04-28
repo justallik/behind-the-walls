@@ -62,8 +62,7 @@ public class EnemyHealth : MonoBehaviour
         // 3. АКТИВИРУЕМ RAGDOLL
         EnableRagdoll();
 
-        // 4. Уничтожаем врага через 3 секунды
-        Destroy(gameObject, 3f);
+        // 4. Враг остаётся на сцене (для обыска)
     }
 
     // ==================== RAGDOLL ====================
@@ -100,4 +99,6 @@ public class EnemyHealth : MonoBehaviour
             }
         }
     }
+
+    public float GetCurrentHealth() => currentHealth;
 }

@@ -7,8 +7,14 @@ using UnityEngine;
 public class ItemData : ScriptableObject
 {
     public string itemName = "Предмет";
-    public enum ItemType { Weapon, Note, HealthItem, Ammunition }
+    public enum ItemType { Weapon, Note, HealthItem, Ammunition, Diary }
     public ItemType itemType;
+
+    // --- ПОЛЕ ДНЕВНИКА ---
+    [Header("Настройки Дневника")]
+    [Tooltip("ID записи от 1 до 9. Используется для идентификации записи")]
+    public int diaryEntryID;
+    // ------------------
     
     // Для оружия - типы слотов
     // General   -> Автоматически заполняет первый пустой слот (0 или 1)

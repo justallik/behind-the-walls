@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using UnityEngine.InputSystem;
+using UnityEngine.EventSystems;
 
 public class InventoryUINew : MonoBehaviour
 {
@@ -32,7 +33,11 @@ public class InventoryUINew : MonoBehaviour
     [SerializeField] private AudioClip openInventoryClip;
     [SerializeField] private AudioClip closeInventoryClip;
 
+    [Header("Меню паузы")]
+    public GameObject pauseMenuPanel; // Меню с кнопками Продолжить/Сохранить
+
     private bool isOpen = false;
+    private bool isPauseMenuOpen = false;
 
     private void Awake()
     {
@@ -47,18 +52,39 @@ public class InventoryUINew : MonoBehaviour
         if (InventorySystemNew.instance != null) 
             InventorySystemNew.instance.inventoryChanged += OnInventoryChanged;
         
-        // Привязываем кнопку "Дневник"
-        if (btnShowDiary != null)
-        {
-            Button btn = btnShowDiary.GetComponent<Button>();
-            if (btn != null) btn.onClick.AddListener(ShowDiaryTab);
-        }
-        
-        // Привязываем кнопку "Рюкзак"
+        // Подключаем обработчики клика для кнопок переключения вкладок
         if (btnShowInventory != null)
         {
-            Button btn = btnShowInventory.GetComponent<Button>();
-            if (btn != null) btn.onClick.AddListener(ShowInventoryTab);
+            Button btnInventory = btnShowInventory.GetComponent<Button>();
+            if (btnInventory != null)
+            {
+                btnInventory.onClick.RemoveAllListeners();
+                btnInventory.onClick.AddListener(ShowInventoryTab);
+            }
+        }
+        
+        if (btnShowDiary != null)
+        {
+            Button btnDiary = btnShowDiary.GetComponent<Button>();
+            if (btnDiary != null)
+            {
+                btnDiary.onClick.RemoveAllListeners();
+                btnDiary.onClick.AddListener(ShowDiaryTab);
+            }
+            
+            // Делаем кнопку прозрачной (alpha = 0) и не интерактивной
+            CanvasGroup diaryBtnGroup = btnShowDiary.GetComponent<CanvasGroup>();
+            if (diaryBtnGroup == null) diaryBtnGroup = btnShowDiary.AddComponent<CanvasGroup>();
+            
+            diaryBtnGroup.alpha = 0f;
+            diaryBtnGroup.interactable = false;
+            diaryBtnGroup.blocksRaycasts = false;
+        }
+        
+        // Подписываемся на разблокировку дневника
+        if (DiaryManager.instance != null)
+        {
+            DiaryManager.instance.diaryUnlockedEvent += OnDiaryUnlocked;
         }
     }
 
@@ -67,16 +93,22 @@ public class InventoryUINew : MonoBehaviour
         if (InventorySystemNew.instance != null) 
             InventorySystemNew.instance.inventoryChanged -= OnInventoryChanged;
         
+        if (DiaryManager.instance != null)
+            DiaryManager.instance.diaryUnlockedEvent -= OnDiaryUnlocked;
+    }
+
+    private void OnDiaryUnlocked()
+    {
         if (btnShowDiary != null)
         {
-            Button btn = btnShowDiary.GetComponent<Button>();
-            if (btn != null) btn.onClick.RemoveListener(ShowDiaryTab);
-        }
-        
-        if (btnShowInventory != null)
-        {
-            Button btn = btnShowInventory.GetComponent<Button>();
-            if (btn != null) btn.onClick.RemoveListener(ShowInventoryTab);
+            CanvasGroup diaryBtnGroup = btnShowDiary.GetComponent<CanvasGroup>();
+            if (diaryBtnGroup == null) diaryBtnGroup = btnShowDiary.AddComponent<CanvasGroup>();
+            
+            diaryBtnGroup.alpha = 1f;
+            diaryBtnGroup.interactable = true;
+            diaryBtnGroup.blocksRaycasts = true;
+            
+            Debug.Log("📖 Кнопка дневника активирована!");
         }
     }
 
@@ -89,36 +121,88 @@ public class InventoryUINew : MonoBehaviour
     {
         if (Keyboard.current == null) return;
         
+        // Q - toggle инвентаря
         if (Keyboard.current.qKey.wasPressedThisFrame)
         {
             if (isOpen) CloseInventory();
             else OpenInventory();
         }
         
-        if (isOpen && Keyboard.current.escapeKey.wasPressedThisFrame)
+        // ESC - toggle меню паузы
+        if (Keyboard.current.escapeKey.wasPressedThisFrame)
         {
-            // 1) Если открыто ПКМ-меню — закрываем только его и НЕ закрываем инвентарь
-            if (ItemContextMenu.instance != null && ItemContextMenu.instance.IsOpen())
+            if (isPauseMenuOpen) ClosePauseMenu();
+            else OpenPauseMenu();
+        }
+        
+        // ЛКМ - закрыть ПКМ-меню и отменить выбор слота (если инвентарь открыт)
+        if (isOpen && Mouse.current.leftButton.wasPressedThisFrame)
+        {
+            // Проверяем - нажали ли мы на UI элемент (кнопку)
+            bool isPointerOverUI = EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
+            
+            // 1) Закрываем ПКМ-меню только если это не клик по его кнопке
+            if (ItemContextMenu.instance != null && ItemContextMenu.instance.IsOpen() && !isPointerOverUI)
             {
                 ItemContextMenu.instance.HideMenu();
                 return;
             }
-
-            // 2) Если pending выбор слота — отменяем, НЕ закрываем инвентарь
+            
+            // 2) Отменяем выбор слота (даже если кликнули по UI - выбор слота должен закрываться везде)
             if (HotbarManager.instance != null && HotbarManager.instance.IsPendingSlotSelection())
             {
                 HotbarManager.instance.CancelSlotSelection();
                 return;
             }
+        }
+    }
 
-            // 3) Иначе закрываем инвентарь
-            CloseInventory();
+    private void OpenPauseMenu()
+    {
+        isPauseMenuOpen = true;
+        Debug.Log("📋 Меню паузы открыто");
+        
+        if (pauseMenuPanel != null)
+        {
+            pauseMenuPanel.SetActive(true);
+            Time.timeScale = 0f; // Ставим игру на паузу
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+        }
+    }
+
+    private void ClosePauseMenu()
+    {
+        isPauseMenuOpen = false;
+        Debug.Log("📋 Меню паузы закрыто");
+        
+        if (pauseMenuPanel != null)
+        {
+            pauseMenuPanel.SetActive(false);
+            Time.timeScale = 1f; // Возобновляем игру
+            
+            if (isOpen)
+            {
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
+            }
+            else
+            {
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
+            }
         }
     }
 
     private void OpenInventory()
     {
         isOpen = true;
+        
+        // Закрываем меню паузы если оно открыто
+        if (isPauseMenuOpen)
+        {
+            ClosePauseMenu();
+        }
         
         if (uiAudioSource != null && openInventoryClip != null)
         {
@@ -145,14 +229,18 @@ public class InventoryUINew : MonoBehaviour
 
     public void CloseInventory()
     {
-        Debug.Log($"CLOSE INVENTORY вызван из: {Time.frameCount}");
-        
         if (uiAudioSource != null && closeInventoryClip != null)
         {
             uiAudioSource.PlayOneShot(closeInventoryClip);
         }
         
         isOpen = false;
+        
+        // Закрываем меню паузы если оно открыто
+        if (isPauseMenuOpen)
+        {
+            ClosePauseMenu();
+        }
         
         // ✅ Отменяем режим выбора слота для хотбара, если он был активен
         if (HotbarManager.instance != null)
@@ -188,22 +276,33 @@ public class InventoryUINew : MonoBehaviour
         if (diaryPanel != null) diaryPanel.SetActive(false);
         if (btnShowInventory != null) btnShowInventory.SetActive(false);
         if (btnShowDiary != null) btnShowDiary.SetActive(true);
-        
         UpdateInventoryDisplay(); 
     }
 
     public void ShowDiaryTab()
     {
+        // Проверяем, разблокирован ли дневник в менеджере
+        if (DiaryManager.instance != null && !DiaryManager.instance.IsUnlocked())
+        {
+            return;
+        }
+
         if (inventoryPanel != null) inventoryPanel.SetActive(false);
         if (diaryPanel != null) diaryPanel.SetActive(true);
         if (btnShowInventory != null) btnShowInventory.SetActive(true);
         if (btnShowDiary != null) btnShowDiary.SetActive(false);
+        
+        // Обновляем UI дневника
+        if (DiaryUI.instance != null)
+        {
+            DiaryUI.instance.RefreshDiaryDisplay();
+        }
     }
 
     public bool IsOpen() => isOpen;
 
     // ==========================================
-    // ЛОГИКА ОБНОВЛЕНИЯ СЛОТОВ (Без изменений)
+    // ЛОГИКА ОБНОВЛЕНИЯ СЛОТОВ
     // ==========================================
 
     public void UpdateInventoryDisplay()

@@ -15,8 +15,8 @@ public class PlayerCombat : MonoBehaviour
     public float dodgeStaminaCost = 25f;
 
     [Header("Настройки блока")]
-    [SerializeField] private float maxBlockDuration = 2.0f; // Блок длится максимум 2 секунды
-    private float currentBlockTimer = 0f;
+    [SerializeField] private int maxBlockHits = 2; // Блок ломается после N ударов врага
+    private int blockHitsAbsorbed = 0; // Счётчик заблокированных ударов
     private bool canBlockAgain = true; // Чтобы нельзя было спамить блок, не отпуская кнопку
 
     private float lastAttackTime = 0f;
@@ -41,6 +41,9 @@ public class PlayerCombat : MonoBehaviour
         // 2. ОБНОВЛЕННАЯ ЛОГИКА БЛОКА
         HandleBlockLogic();
 
+        // 3. ДОБИВАЮЩИЙ УДАР (F)
+        CheckExecuteInput();
+
         // --- ПРОВЕРКА ОРУЖИЯ ДЛЯ АТАК ---
         bool hasWeapon = EquipmentManager.instance != null && 
                          EquipmentManager.instance.isEquipped && 
@@ -48,13 +51,13 @@ public class PlayerCombat : MonoBehaviour
 
         if (!hasWeapon) return; 
 
-        // 3. ОБЫЧНЫЙ УДАР (ЛКМ)
+        // 4. ОБЫЧНЫЙ УДАР (ЛКМ)
         if (inputHandler.AttackInput && Time.time >= lastAttackTime + attackCooldown)
         {
             PerformAttack();
         }
 
-        // 4. СУПЕР УДАР (Клавиша V)
+        // 5. СУПЕР УДАР (Клавиша V)
         if (Keyboard.current.vKey.wasPressedThisFrame && Time.time >= lastSuperAttackTime + superAttackCooldown)
         {
             PerformSuperAttack();
@@ -84,6 +87,7 @@ public class PlayerCombat : MonoBehaviour
 
             if (Keyboard.current.aKey.wasPressedThisFrame) dodgeDir = -playerMovement.transform.right;
             else if (Keyboard.current.dKey.wasPressedThisFrame) dodgeDir = playerMovement.transform.right;
+            else if (Keyboard.current.sKey.wasPressedThisFrame) dodgeDir = -playerMovement.transform.forward; // 🔄 НАЗАД
 
             if (dodgeDir != Vector3.zero)
             {
@@ -113,32 +117,21 @@ public class PlayerCombat : MonoBehaviour
             return;
         }
 
-        // Если кнопка зажата, стамины хватает и мы не превысили лимит времени
-        if (inputHandler.BlockInput && canBlockAgain && playerMovement.GetCurrentStamina() > 0)
+        // Если кнопка зажата, стамины хватает и блок еще не сломан
+        if (inputHandler.BlockInput && canBlockAgain && playerMovement.GetCurrentStamina() > 0 && blockHitsAbsorbed < maxBlockHits)
         {
             if (!isBlocking) 
             {
                 StartBlock();
             }
 
-            // Считаем время блока
-            currentBlockTimer += Time.deltaTime;
-
-            // Тратим стамину
+            // Тратим стамину на блокировку
             float staminaCost = 15f; 
             if (EquipmentManager.instance.isEquipped && EquipmentManager.instance.currentEquippedItem != null)
             {
                 staminaCost = EquipmentManager.instance.currentEquippedItem.blockStaminaCost;
             }
             playerMovement.UseStamina(staminaCost * Time.deltaTime);
-
-            // Если время вышло — принудительно выключаем блок
-            if (currentBlockTimer >= maxBlockDuration)
-            {
-                Debug.Log("💤 Ноа устал держать блок!");
-                canBlockAgain = false; // Блокировка до тех пор, пока не перенажмет кнопку
-                StopBlock();
-            }
         }
         else if (isBlocking)
         {
@@ -149,7 +142,7 @@ public class PlayerCombat : MonoBehaviour
     private void StartBlock()
     {
         isBlocking = true;
-        currentBlockTimer = 0f; // Сброс таймера при новом нажатии
+        blockHitsAbsorbed = 0; // Сброс счётчика ударов при новом блоке
         Debug.Log("🛡 Начали блок");
     }
 
@@ -158,9 +151,53 @@ public class PlayerCombat : MonoBehaviour
         if (isBlocking)
         {
             isBlocking = false;
-            currentBlockTimer = 0f;
+            blockHitsAbsorbed = 0;
             Debug.Log("🛡 Сняли блок");
         }
+    }
+
+    // ==================== ВЫЗЫВАЕТСЯ ИЗ PlayerHealth КОГДА ВРАГ ПОПАДАЕТ В БЛОК ====================
+    public void OnBlockedHit()
+    {
+        if (!isBlocking) return;
+
+        blockHitsAbsorbed++;
+        Debug.Log($"💢 Блокирован удар: {blockHitsAbsorbed}/{maxBlockHits}");
+
+        if (blockHitsAbsorbed >= maxBlockHits)
+        {
+            Debug.Log("💔 Блок сломан! Враг пробил защиту!");
+            StopBlock();
+            canBlockAgain = false; // Нужно отпустить и снова нажать RMB
+        }
+    }
+
+    // ==================== ДОБИВАЮЩИЙ УДАР (F) ====================
+    private void CheckExecuteInput()
+    {
+        if (!Keyboard.current.fKey.wasPressedThisFrame) return;
+
+        // Ищем врага в радиусе 2.5м
+        Collider[] hits = Physics.OverlapSphere(transform.position, attackRange);
+        
+        foreach (Collider collider in hits)
+        {
+            EnemyHealth enemy = collider.GetComponentInParent<EnemyHealth>();
+            if (enemy == null) continue;
+
+            // Проверяем если враг ослаблен (<30% HP)
+            float healthPercent = (enemy.GetCurrentHealth() / enemy.maxHealth) * 100f;
+            
+            if (healthPercent < 30f)
+            {
+                Debug.Log($"⚡ ВЫПОЛНЕНИЕ! Враг повержен! HP: {healthPercent:F1}%");
+                PlayWeaponAnimation("Execute");
+                enemy.TakeDamage(enemy.maxHealth); // Мгновенная смерть
+                return; // Выполняем только на первого врага в радиусе
+            }
+        }
+
+        Debug.Log("❌ Враг слишком здоров для добивающего удара!");
     }
 
     private void PerformSuperAttack()

@@ -4,8 +4,8 @@ using UnityEngine.AI;
 public class EnemyAI : MonoBehaviour
 {
     // ==================== STATE MACHINE ====================
-    public enum EnemyState { Patrol, Idle, Aggro, Chase, Attack, Die }
-    private EnemyState currentState = EnemyState.Patrol;
+    public enum EnemyState { Lying, Patrol, Idle, Aggro, Chase, Attack, Die }
+    private EnemyState currentState = EnemyState.Lying;
 
     [Header("Настройки ИИ")]
     public Transform player;              
@@ -92,6 +92,9 @@ public class EnemyAI : MonoBehaviour
         // STATE MACHINE
         switch (currentState)
         {
+            case EnemyState.Lying:
+                UpdateLying();
+                break;
             case EnemyState.Patrol:
                 UpdatePatrol();
                 break;
@@ -193,6 +196,22 @@ public class EnemyAI : MonoBehaviour
                 Debug.Log($"➡️ Точка {oldIndex} → {currentPatrolIndex}");
             }
         }
+    }
+
+    // ==================== STATE: LYING ====================
+    private void UpdateLying()
+    {
+        float distanceToPlayer = Vector3.Distance(transform.position, player.position);
+
+        // Враг лежит и слушает - если видит игрока, встаёт
+        if (canSeePlayer && distanceToPlayer <= chaseRange)
+        {
+            TransitionToState(EnemyState.Aggro);
+            Debug.Log($"🧟 Враг видит игрока из положения лежа! AGGRO");
+        }
+
+        agent.isStopped = true;
+        if (animator != null) animator.SetBool("isMoving", false);
     }
 
     // ==================== STATE: IDLE ====================

@@ -78,6 +78,9 @@ public class PlayerHealth : MonoBehaviour
             float damageToBlock = amount * blockReduction;
             finalDamage -= damageToBlock;
 
+            // 🛡 НОВОЕ: Вызываем OnBlockedHit для счётчика ударов
+            combatScript.OnBlockedHit();
+
             Debug.Log($"🛡 Заблокировано урона: {damageToBlock}. Итоговый урон: {finalDamage}");
         }
         else

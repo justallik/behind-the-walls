@@ -5,54 +5,91 @@ public class InteractableItem : MonoBehaviour
     [Header("Настройки предмета")]
     public ItemData itemData;
 
-    [TextArea]
-    public string noteContent;
-
     [Header("Квест")]
     [TextArea]
-    public string questTextOnPickup; // Заполни в Inspector для нужных предметов
+    public string questTextOnPickup;
 
-    public void Interact()
+    private void Start()
     {
-        if (itemData == null)
-        {
-            Debug.LogError("InteractableItem: itemData is null!");
-            return;
-        }
+        // Скрываем записки если дневник не разблокирован
+        if (itemData == null) return;
+        if (itemData.itemType != ItemData.ItemType.Note) return;
 
-        if (InventorySystemNew.instance == null)
+        // Если DiaryManager уже есть - скрываем записку если дневник не разблокирован
+        if (DiaryManager.instance != null)
         {
-            Debug.LogError("InteractableItem: InventorySystemNew.instance is null!");
-            return;
-        }
-
-        if (itemData.itemType == ItemData.ItemType.Note)
-        {
-            Debug.Log("📝 Читаем записку: " + noteContent);
-            TryUpdateQuest(); // квест тоже можно обновить при чтении записки
-            return;
-        }
-
-        bool success = InventorySystemNew.instance.AddItem(itemData, 1);
-
-        if (success)
-        {
-            Debug.Log("✅ Подобрано: " + itemData.itemName);
-            TryUpdateQuest(); // обновляем задание если оно задано
-            Destroy(gameObject);
-        }
-        else
-        {
-            Debug.LogWarning("⚠️ Не удалось добавить: " + itemData.itemName);
+            if (!DiaryManager.instance.IsDiaryUnlocked())
+            {
+                gameObject.SetActive(false);
+                // Подписываемся на событие
+                DiaryManager.instance.diaryUnlockedEvent += OnDiaryUnlocked;
+            }
         }
     }
 
-    // Обновляем квест только если поле заполнено в Inspector
+    private void OnDestroy()
+    {
+        if (DiaryManager.instance != null && itemData != null && itemData.itemType == ItemData.ItemType.Note)
+        {
+            DiaryManager.instance.diaryUnlockedEvent -= OnDiaryUnlocked;
+        }
+    }
+
+    private void OnDiaryUnlocked()
+    {
+        if (gameObject != null) gameObject.SetActive(true);
+    }
+
+    public void Interact()
+    {
+        if (itemData == null) return;
+
+        // Дневник - самый важный предмет, его должны моч подобрать всегда
+        if (itemData.itemType == ItemData.ItemType.Diary)
+        {
+            Debug.Log("📖 Найден дневник!");
+            
+            // Пытаемся разблокировать дневник если он есть
+            if (DiaryManager.instance != null)
+            {
+                DiaryManager.instance.UnlockDiary();
+            }
+            else
+            {
+                Debug.LogWarning("⚠️ DiaryManager не найден на сцене!");
+            }
+            
+            TryUpdateQuest();
+            Destroy(gameObject);
+            return;
+        }
+
+        // Для остального нужен InventorySystem
+        if (InventorySystemNew.instance == null) return;
+
+        // Записка
+        if (itemData.itemType == ItemData.ItemType.Note)
+        {
+            if (DiaryManager.instance != null && DiaryManager.instance.IsDiaryUnlocked())
+                DiaryManager.instance.AddEntryByID(itemData.diaryEntryID);
+            
+            TryUpdateQuest();
+            Destroy(gameObject);
+            return;
+        }
+
+        // Остальные предметы
+        bool success = InventorySystemNew.instance.AddItem(itemData, 1);
+        if (success)
+        {
+            TryUpdateQuest();
+            Destroy(gameObject);
+        }
+    }
+
     private void TryUpdateQuest()
     {
         if (!string.IsNullOrEmpty(questTextOnPickup) && QuestManager.instance != null)
-        {
             QuestManager.instance.UpdateQuest(questTextOnPickup);
-        }
     }
 }

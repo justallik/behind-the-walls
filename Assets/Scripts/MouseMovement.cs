@@ -69,6 +69,10 @@ public class MouseMovement : MonoBehaviour
     {
         if (playerBody == null || Mouse.current == null) return;
 
+        // 🔒 БЛОКИРОВКА ВВОДА ЕСЛИ ИДЁТ INTRO
+        if (WakeUpSceneController.introPlaying)
+            return;
+
         // Пропускаем первый кадр чтобы избежать spike в мышке
         if (isFirstFrame)
         {

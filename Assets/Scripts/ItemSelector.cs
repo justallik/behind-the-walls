@@ -65,7 +65,10 @@ public class ItemSelector : MonoBehaviour
         // Пускаем один луч для всего
         if (Physics.Raycast(ray, out RaycastHit hit, rayDistance, interactableMask))
         {
-            foundItem = hit.collider.GetComponentInParent<InteractableItem>();
+            // Сначала ищем на самом объекте, потом на родителях
+            foundItem = hit.collider.GetComponent<InteractableItem>();
+            if (foundItem == null)
+                foundItem = hit.collider.GetComponentInParent<InteractableItem>();
             
             // Если это не предмет, проверяем, может это кровать?
             if (foundItem == null)
@@ -110,7 +113,14 @@ public class ItemSelector : MonoBehaviour
     {
         if (currentItem == null || currentItem.itemData == null) return;
 
-        string actionText = (currentItem.itemData.itemType == ItemData.ItemType.Note) ? "Прочитать " : "Взять ";
+        string actionText;
+        
+        if (currentItem.itemData.itemType == ItemData.ItemType.Note)
+            actionText = "Прочитать ";
+        else if (currentItem.itemData.itemType == ItemData.ItemType.Diary)
+            actionText = "Взять ";
+        else
+            actionText = "Взять ";
 
         if (tmpText != null)
             tmpText.text = "[E] " + actionText + currentItem.itemData.itemName;

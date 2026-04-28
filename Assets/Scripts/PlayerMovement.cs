@@ -53,6 +53,10 @@ public class PlayerMovement : MonoBehaviour
     private Vector3 standingCenterPos;
     private Vector3 standingVisualScale;
     private Vector3 standingVisualPos; // 🔥 Запоминаем исходную позицию модели
+    
+    // ⚡ ОПТИМИЗАЦИЯ: кэшируем позицию для CheckSphere
+    private Vector3 cachedSpherePosition;
+    private const float MOVE_INPUT_THRESHOLD_SQ = 0.01f; // Квадрат 0.1
 
     private void Start()
     {
@@ -79,7 +83,15 @@ public class PlayerMovement : MonoBehaviour
         if (controller == null || inputHandler == null || groundCheck == null) 
             return;
 
-        // 🛑 ЕСЛИ УКЛОНЯЕМСЯ - БЛОКИРУЕМ ОБЫЧНОЕ УПРАВЛЕНИЕ
+        // � БЛОКИРОВКА ВВОДА ЕСЛИ ИДЁТ INTRO
+        if (WakeUpSceneController.introPlaying)
+        {
+            ApplyGravity();
+            controller.Move(new Vector3(0, velocity.y * Time.deltaTime, 0));
+            return;
+        }
+
+        // �🛑 ЕСЛИ УКЛОНЯЕМСЯ - БЛОКИРУЕМ ОБЫЧНОЕ УПРАВЛЕНИЕ
         if (isDodging)
         {
             ApplyGravity();
@@ -96,13 +108,17 @@ public class PlayerMovement : MonoBehaviour
 
     private void GroundedCheck()
     {
-        Vector3 spherePosition = new Vector3(transform.position.x, transform.position.y - groundedOffset, transform.position.z);
-        isGrounded = Physics.CheckSphere(spherePosition, groundedRadius, groundLayers, QueryTriggerInteraction.Ignore);
+        // ⚡ ОПТИМИЗАЦИЯ: используем кэшированную позицию вместо создания новой Vector3
+        cachedSpherePosition.x = transform.position.x;
+        cachedSpherePosition.y = transform.position.y - groundedOffset;
+        cachedSpherePosition.z = transform.position.z;
+        isGrounded = Physics.CheckSphere(cachedSpherePosition, groundedRadius, groundLayers, QueryTriggerInteraction.Ignore);
     }
 
     private void UpdateStamina()
     {
-        bool isMoving = inputHandler.MoveInput.magnitude > 0.1f;
+        // ⚡ ОПТИМИЗАЦИЯ: используем sqrMagnitude вместо magnitude (избегаем Sqrt)
+        bool isMoving = inputHandler.MoveInput.sqrMagnitude > MOVE_INPUT_THRESHOLD_SQ;
         bool isSprinting = inputHandler.SprintInput && !isCrouching && currentSpeed > 0;
         
         if (regenTimer > 0) regenTimer -= Time.deltaTime;
@@ -164,14 +180,15 @@ public class PlayerMovement : MonoBehaviour
 
     private void Move()
     {
-        float targetSpeed = inputHandler.MoveInput.magnitude > 0.1f ? (inputHandler.SprintInput && !isCrouching && canSprint ? sprintSpeed : normalSpeed) : 0f;
+        // ⚡ ОПТИМИЗАЦИЯ: используем sqrMagnitude
+        float targetSpeed = inputHandler.MoveInput.sqrMagnitude > MOVE_INPUT_THRESHOLD_SQ ? (inputHandler.SprintInput && !isCrouching && canSprint ? sprintSpeed : normalSpeed) : 0f;
         if (isCrouching && targetSpeed > 0) targetSpeed = crouchSpeed;
         
         if (Mathf.Abs(currentSpeed - targetSpeed) > 0.1f) currentSpeed = Mathf.Lerp(currentSpeed, targetSpeed, Time.deltaTime * speedChangeRate);
         else currentSpeed = targetSpeed;
         
         Vector3 inputDirection = Vector3.zero;
-        if (inputHandler.MoveInput.magnitude > 0.1f) inputDirection = (transform.right * inputHandler.MoveInput.x + transform.forward * inputHandler.MoveInput.y).normalized;
+        if (inputHandler.MoveInput.sqrMagnitude > MOVE_INPUT_THRESHOLD_SQ) inputDirection = (transform.right * inputHandler.MoveInput.x + transform.forward * inputHandler.MoveInput.y).normalized;
         
         Vector3 movement = inputDirection * currentSpeed * Time.deltaTime + new Vector3(0, velocity.y * Time.deltaTime, 0);
         controller.Move(movement);

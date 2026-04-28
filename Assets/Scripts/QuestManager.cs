@@ -1,48 +1,216 @@
 using UnityEngine;
 using TMPro;
+using System.Collections.Generic;
 
 public class QuestManager : MonoBehaviour
 {
     public static QuestManager instance;
 
-    [Header("UI")]
-    [SerializeField] private TextMeshProUGUI questText;
-    [SerializeField] private GameObject questPanel; // панель с текстом
+    [Header("UI - Простой текст задания")]
+    [SerializeField] private TextMeshProUGUI questText; // Одна строка!
+    [SerializeField] private GameObject questPanel;
 
-    [Header("Текущее задание")]
-    [SerializeField] private string startingQuest = "Найди выход из лаборатории";
+    [Header("Квесты")]
+    [SerializeField] private List<QuestData> allQuests = new List<QuestData>();
+    private Dictionary<string, QuestData> questDict = new Dictionary<string, QuestData>();
+    
+    private QuestData currentQuest = null;
+    
+    // ==================== СОБЫТИЯ ====================
+    public delegate void QuestEventHandler(QuestData quest);
+    public event QuestEventHandler OnQuestActivated;
+    public event QuestEventHandler OnQuestCompleted;
 
     private void Awake()
     {
-        if (instance == null) instance = this;
-        else { Destroy(gameObject); return; }
+        if (instance == null)
+        {
+            instance = this;
+        }
+        else
+        {
+            Destroy(gameObject);
+            return;
+        }
     }
 
     private void Start()
     {
-        UpdateQuest(startingQuest);
+        Debug.Log("🚀 QuestManager Start()");
+        InitializeQuests();
     }
 
-    public void UpdateQuest(string newQuestText)
+    // ==================== ИНИЦИАЛИЗАЦИЯ ====================
+    private void InitializeQuests()
     {
-        if (questText == null) return;
+        Debug.Log("📍 InitializeQuests() запущена");
+        
+        // Загружаем все QuestData из массива
+        if (allQuests == null || allQuests.Count == 0)
+        {
+            QuestData[] foundQuests = Resources.LoadAll<QuestData>("Quests");
+            allQuests = new List<QuestData>(foundQuests);
+            Debug.Log($"📋 Загружено {allQuests.Count} квестов из Resources/Quests");
+            
+            if (foundQuests.Length == 0)
+            {
+                Debug.LogError("❌ НЕТУ КВЕСТОВ в Assets/Resources/Quests!");
+                return;
+            }
+        }
 
-        questText.text = "📋 " + newQuestText;
-        Debug.Log("📋 Задание обновлено: " + newQuestText);
+        foreach (QuestData quest in allQuests)
+        {
+            if (quest == null) continue;
+            quest.Initialize();
+            questDict[quest.questId] = quest;
+            Debug.Log($"✅ Инициализирован квест: {quest.questId}");
+        }
 
-        // Небольшая анимация — панель мигает при смене задания
+        Debug.Log($"📊 Всего инициализировано квестов: {questDict.Count}");
+
+        // Скрываем панель в начале
         if (questPanel != null)
-            StartCoroutine(FlashPanel());
+            questPanel.SetActive(false);
     }
 
-    private System.Collections.IEnumerator FlashPanel()
+    // ==================== АКТИВАЦИЯ КВЕСТА ====================
+    public void ActivateQuest(string questId)
     {
-        CanvasGroup cg = questPanel.GetComponent<CanvasGroup>();
-        if (cg == null) cg = questPanel.AddComponent<CanvasGroup>();
+        Debug.Log($"🎯 ActivateQuest('{questId}') вызвана");
+        
+        if (questDict == null || questDict.Count == 0)
+        {
+            Debug.LogError("❌ questDict пусто! Инициализация не прошла");
+            return;
+        }
 
-        // Быстро гасим и возвращаем
-        cg.alpha = 0f;
-        yield return new WaitForSeconds(0.1f);
-        cg.alpha = 1f;
+        if (!questDict.ContainsKey(questId))
+        {
+            Debug.LogError($"❌ Квест не найден в словаре: {questId}");
+            Debug.Log($"📋 Доступные квесты: {string.Join(", ", questDict.Keys)}");
+            return;
+        }
+
+        QuestData quest = questDict[questId];
+        if (quest == null)
+        {
+            Debug.LogError($"❌ QuestData is null для: {questId}");
+            return;
+        }
+
+        Debug.Log($"✅ Найден квест: {quest.questObjective}");
+        quest.ActivateQuest();
+        currentQuest = quest;
+        
+        UpdateQuestUI();
+        OnQuestActivated?.Invoke(quest);
+        Debug.Log($"✅ Квест активирован!");
+    }
+
+    // ==================== ЗАВЕРШЕНИЕ КВЕСТА ====================
+    public void CompleteQuest(string questId)
+    {
+        if (!questDict.ContainsKey(questId))
+        {
+            Debug.LogError($"❌ Квест не найден: {questId}");
+            return;
+        }
+
+        QuestData quest = questDict[questId];
+        quest.CompleteQuest();
+        UpdateQuestUI();
+        OnQuestCompleted?.Invoke(quest);
+    }
+
+    // ==================== УВЕЛИЧЕНИЕ СЧЁТЧИКА ====================
+    public void IncrementQuestCounter(string questId)
+    {
+        if (!questDict.ContainsKey(questId))
+        {
+            Debug.LogError($"❌ Квест не найден: {questId}");
+            return;
+        }
+
+        QuestData quest = questDict[questId];
+        quest.IncrementCounter();
+        UpdateQuestUI();
+
+        if (quest.isCompleted)
+        {
+            OnQuestCompleted?.Invoke(quest);
+        }
+    }
+
+    // ==================== ОБНОВЛЕНИЕ UI ====================
+    private void UpdateQuestUI()
+    {
+        Debug.Log("🖼️ UpdateQuestUI() вызвана");
+        
+        if (questText == null)
+        {
+            Debug.LogError("❌ questText НЕ НАЗНАЧЕН в Inspector!");
+            return;
+        }
+        if (questPanel == null)
+        {
+            Debug.LogWarning("⚠️ questPanel НЕ назначен, но это не критично");
+        }
+
+        if (currentQuest == null || !currentQuest.isActive)
+        {
+            Debug.Log("📍 Квест не активен, скрываем UI");
+            if (questPanel != null)
+                questPanel.SetActive(false);
+            questText.text = "";
+            return;
+        }
+
+        Debug.Log("✅ Показываем UI квеста");
+        if (questPanel != null)
+            questPanel.SetActive(true);
+
+        questText.text = $"📍 {currentQuest.GetFullObjective()}";
+        Debug.Log($"💬 Текст установлен: {questText.text}");
+    }
+
+    // ==================== ПОЛУЧЕНИЕ ИНФОРМАЦИИ ====================
+    public QuestData GetQuest(string questId)
+    {
+        if (questDict.ContainsKey(questId))
+            return questDict[questId];
+        return null;
+    }
+
+    public bool IsQuestActive(string questId)
+    {
+        if (questDict.ContainsKey(questId))
+            return questDict[questId].isActive;
+        return false;
+    }
+
+    public bool IsQuestCompleted(string questId)
+    {
+        if (questDict.ContainsKey(questId))
+            return questDict[questId].isCompleted;
+        return false;
+    }
+
+    // ==================== СОВМЕСТИМОСТЬ СО СТАРЫМ КОДОМ ====================
+    public void UpdateQuest(string questText)
+    {
+        Debug.Log($"📋 {questText}");
+    }
+
+    // ==================== DEBUG ====================
+    public void PrintAllQuests()
+    {
+        Debug.Log("=== ВСЕ КВЕСТЫ ===");
+        foreach (var quest in questDict.Values)
+        {
+            string status = quest.isCompleted ? "✅" : (quest.isActive ? "🟡" : "⚪");
+            Debug.Log($"{status} {quest.questId}: {quest.questObjective}");
+        }
     }
 }
+
