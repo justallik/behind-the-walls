@@ -27,10 +27,11 @@ public class PlayerMovement : MonoBehaviour
     
     [Header("═══ ВЫНОСЛИВОСТЬ ═══")]
     [SerializeField] private float maxStamina = 100f;
-    [SerializeField] private float staminaDrainRate = 20f;
-    [SerializeField] private float staminaRecoveryWalk = 15f;
-    [SerializeField] private float staminaRecoveryIdle = 30f;
+    [SerializeField] private float staminaDrainRate = 10f;           // Убывание за 10 сек
+    [SerializeField] private float staminaRecoveryWalk = 3.33f;      // Восстановление за 30 сек при ходьбе
+    [SerializeField] private float staminaRecoveryIdle = 5f;         // Восстановление за 20 сек стоя
     [SerializeField] private float regenDelay = 1.0f;
+    [SerializeField] private AnimationCurve staminaDrainCurve = AnimationCurve.Linear(0, 1, 1, 0.5f); // Кривая убывания стамины
     private float regenTimer = 0f;
     
     [Header("═══ НАСТРОЙКИ УКЛОНЕНИЯ (СПРИНТ 4) ═══")]
@@ -125,14 +126,32 @@ public class PlayerMovement : MonoBehaviour
 
         if (isSprinting && currentStamina > 0)
         {
-            currentStamina -= staminaDrainRate * Time.deltaTime;
+            // 📉 Используем кривую для изогнутого убывания стамины
+            float normalizedStamina = currentStamina / maxStamina; // 0 до 1
+            float curveMultiplier = staminaDrainCurve.Evaluate(normalizedStamina); // Получаем множитель из кривой
+            float drainThisFrame = staminaDrainRate * curveMultiplier * Time.deltaTime;
+            currentStamina -= drainThisFrame;
+            
+            // 🔍 DEBUG
+            Debug.Log($"🏃 СПРИНТ: -{ drainThisFrame:F2}/frame (Drain: {staminaDrainRate}, Mult: {curveMultiplier:F2})");
+            
             regenTimer = regenDelay;
             if (currentStamina <= 0) { currentStamina = 0; canSprint = false; }
         }
         else if (currentStamina < maxStamina && regenTimer <= 0)
         {
-            if (!isMoving) currentStamina += staminaRecoveryIdle * Time.deltaTime;
-            else if (isMoving && !isSprinting) currentStamina += staminaRecoveryWalk * Time.deltaTime;
+            float regenThisFrame = 0f;
+            if (!isMoving)
+            {
+                regenThisFrame = staminaRecoveryIdle * Time.deltaTime;
+                Debug.Log($"😴 СТОЯ: +{regenThisFrame:F2}/frame (Regen: {staminaRecoveryIdle})");
+            }
+            else if (isMoving && !isSprinting)
+            {
+                regenThisFrame = staminaRecoveryWalk * Time.deltaTime;
+                Debug.Log($"🚶 ХОДЬБА: +{regenThisFrame:F2}/frame (Regen: {staminaRecoveryWalk})");
+            }
+            currentStamina += regenThisFrame;
             currentStamina = Mathf.Min(currentStamina, maxStamina);
         }
         

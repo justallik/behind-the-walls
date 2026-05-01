@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ItemData
   itemName: Note
   itemType: 1
-  diaryEntryID: 4
+  diaryEntryID: 3
   weaponSlotType: 0
   weaponDamage: 25
   attackStaminaCost: 15

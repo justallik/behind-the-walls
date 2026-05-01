@@ -82,12 +82,6 @@ public class EnemyAI : MonoBehaviour
 
         // ==================== ПРОВЕРКА ВИДИМОСТИ (СТЕЛС) ====================
         canSeePlayer = CanSeePlayer();
-        
-        // ДЕБАГ: логируем текущее состояние каждые 60 кадров
-        if (Time.frameCount % 60 == 0)
-        {
-            Debug.Log($"🧟 State: {currentState}, canSeePlayer: {canSeePlayer}, agent.velocity: {agent.velocity.magnitude}");
-        }
 
         // STATE MACHINE
         switch (currentState)
@@ -184,7 +178,6 @@ public class EnemyAI : MonoBehaviour
             if (animator != null) animator.SetBool("isMoving", false);
 
             patrolWaitTimer += Time.deltaTime;
-            Debug.Log($"⏳ Ждём у точки {currentPatrolIndex} | таймер: {patrolWaitTimer:F1}/{randomWaitTime} | arrived:{arrived} stuck:{stuck} agentStopped:{agentStopped} | dist:{distToPoint:F2}");
 
             if (patrolWaitTimer >= randomWaitTime)
             {
@@ -193,7 +186,6 @@ public class EnemyAI : MonoBehaviour
                 patrolWaitTimer = 0f;
                 patrolDestinationSet = false;
                 hasStartedMoving = false;
-                Debug.Log($"➡️ Точка {oldIndex} → {currentPatrolIndex}");
             }
         }
     }
@@ -207,7 +199,6 @@ public class EnemyAI : MonoBehaviour
         if (canSeePlayer && distanceToPlayer <= chaseRange)
         {
             TransitionToState(EnemyState.Aggro);
-            Debug.Log($"🧟 Враг видит игрока из положения лежа! AGGRO");
         }
 
         agent.isStopped = true;
@@ -222,7 +213,6 @@ public class EnemyAI : MonoBehaviour
         if (canSeePlayer && distanceToPlayer <= chaseRange)
         {
             TransitionToState(EnemyState.Aggro);
-            Debug.Log($"🧟 Враг заметил игрока! AGGRO");
         }
 
         agent.isStopped = true;
@@ -237,14 +227,12 @@ public class EnemyAI : MonoBehaviour
         if (aggroTimer >= aggroDelay)
         {
             TransitionToState(EnemyState.Chase);
-            Debug.Log($"🧟 Враг встал! CHASE");
         }
 
         float distanceToPlayer = Vector3.Distance(transform.position, player.position);
         if (!canSeePlayer || distanceToPlayer > chaseRange * 1.5f)
         {
             TransitionToState(EnemyState.Patrol);
-            Debug.Log($"🧟 Враг потерял игрока! PATROL");
         }
     }
 
@@ -256,7 +244,6 @@ public class EnemyAI : MonoBehaviour
         if (distanceToPlayer <= attackRange)
         {
             TransitionToState(EnemyState.Attack);
-            Debug.Log($"🧟 Враг найти игрока! ATTACK");
         }
         else if (!canSeePlayer || distanceToPlayer > chaseRange * 1.5f)
         {
@@ -269,7 +256,6 @@ public class EnemyAI : MonoBehaviour
             if (distToLastKnown < 1.5f) // дошли — возвращаемся в патруль
             {
                 TransitionToState(EnemyState.Patrol);
-                Debug.Log("🧟 Враг потерял игрока! PATROL");
             }
         }
         else
@@ -290,7 +276,6 @@ public class EnemyAI : MonoBehaviour
         if (distanceToPlayer > attackRange * 1.5f)
         {
             TransitionToState(EnemyState.Chase);
-            Debug.Log($"🧟 Враг потерял цель! CHASE");
             return;
         }
 
@@ -303,7 +288,6 @@ public class EnemyAI : MonoBehaviour
 
         if (Time.time >= nextAttackTime)
         {
-            Debug.Log("💥 Враг кусает Ноа!");
             playerHealth.TakeDamage(attackDamage);
             nextAttackTime = Time.time + attackCooldown;
             
@@ -330,7 +314,6 @@ public class EnemyAI : MonoBehaviour
     public void SetDead()
     {
         TransitionToState(EnemyState.Die);
-        Debug.Log("💀 Враг мертв! DIE");
     }
 
     private void OnDrawGizmosSelected()

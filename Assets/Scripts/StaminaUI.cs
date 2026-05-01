@@ -19,6 +19,14 @@ public class StaminaUI : MonoBehaviour
     private float lastStamina = -1f;
     private bool lastCanSprint = true;
 
+    void Start()
+    {
+        // Инициализируем цвет на натуральный (цвет из UI)
+        // Больше не трогаем цвет - он не меняется
+    }
+
+
+
     void Update()
     {
         if (playerMovement != null && staminaImage != null)
@@ -31,27 +39,10 @@ public class StaminaUI : MonoBehaviour
                 lastStamina = currentStamina;
             }
             
-            // ПЛАВНО переводим полоску в целевую позицию (вместо резкого скачка)
+            // 📊 ПЛАВНО переводим полоску в целевую позицию (вместо резкого скачка)
             staminaImage.fillAmount = Mathf.Lerp(staminaImage.fillAmount, targetFillAmount, Time.deltaTime * fillAnimationSpeed);
-
-            // ⚡ ОПТИМИЗАЦИЯ: обновляем цвет только если состояние спринта изменилось
-            bool canSprint = playerMovement.CanSprint();
-            if (canSprint != lastCanSprint)
-            {
-                lastCanSprint = canSprint;
-            }
             
-            if (!canSprint)
-            {
-                // Плавный переход в красный
-                staminaImage.color = Color.Lerp(staminaImage.color, Color.red, Time.deltaTime * 3f);
-            }
-            else
-            {
-                // Плавный переход в белый полупрозрачный
-                Color targetColor = new Color(1f, 1f, 1f, 0.5f);
-                staminaImage.color = Color.Lerp(staminaImage.color, targetColor, Time.deltaTime * 3f);
-            }
+            // ✨ Цвет не меняется - натуральный UI цвет все время
         }
     }
 }

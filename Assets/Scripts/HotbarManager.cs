@@ -23,11 +23,6 @@ public class HotbarManager : MonoBehaviour
     [SerializeField] private AudioSource uiAudioSource;
     [SerializeField] private AudioClip assignToHotbarClip;
 
-    [Header("UI подсказка выбора слота")]
-    [SerializeField] private GameObject pendingHintPanel; // панель/объект на Canvas
-    [SerializeField] private TextMeshProUGUI pendingHintText; // текст внутри (можно null)
-    [SerializeField] private string pendingHintMessage = "Выберите слот: 1  2  3  4 (Esc — отмена)";
-
     private int currentSlotIndex = 0;  // Текущий активный слот (0-3)
     
     // Ожидание выбора слота при добавлении предмета
@@ -81,10 +76,6 @@ public class HotbarManager : MonoBehaviour
         }
 
         UpdateHotbarUI();
-
-        // ✅ Спрячем подсказку выбора слота в самом начале
-        if (pendingHintPanel != null)
-            pendingHintPanel.SetActive(false);
 
         // ✅ ИСПРАВЛЕНО: Подписываемся на НОВУЮ систему
         if (InventorySystemNew.instance != null)
@@ -293,16 +284,8 @@ public class HotbarManager : MonoBehaviour
     {
         if (item == null) return;
         
-        // ❌ МЫ УДАЛИЛИ ПРОВЕРКУ НА ДУБЛИ ОТСЮДА!
-        // Очистка старого места теперь происходит внутри AssignItem, 
-        // когда игрок уже нажал конкретную цифру.
-
         isPendingSlotSelection = true;
         pendingItem = item;
-        
-        // ✅ Показываем подсказку выбора слота
-        if (pendingHintPanel != null) pendingHintPanel.SetActive(true);
-        if (pendingHintText != null) pendingHintText.text = pendingHintMessage;
         
         Debug.Log($"⏳ Выбор слота для '{item.itemName}' — нажмите 1, 2, 3 или 4");
     }
@@ -337,14 +320,15 @@ public class HotbarManager : MonoBehaviour
         // Добавляем предмет в выбранный слот
         AssignItem(slotIndex, pendingItem);
         
+        // ✅ Закрываем контекстное меню и хинт панель
+        if (ItemContextMenu.instance != null)
+            ItemContextMenu.instance.HideMenu();
+        
         // 🔊 Звук успешного назначения в хотбар (клип добавишь в инспекторе)
         if (uiAudioSource != null && assignToHotbarClip != null)
         {
             uiAudioSource.PlayOneShot(assignToHotbarClip);
         }
-
-        // ✅ Спрячем подсказку
-        if (pendingHintPanel != null) pendingHintPanel.SetActive(false);
 
         // Выходим из режима ожидания
         isPendingSlotSelection = false;
@@ -371,9 +355,6 @@ public class HotbarManager : MonoBehaviour
             Debug.Log($"❌ Добавление {pendingItem.itemName} отменено");
             isPendingSlotSelection = false;
             pendingItem = null;
-            
-            // ✅ Спрячем подсказку
-            if (pendingHintPanel != null) pendingHintPanel.SetActive(false);
         }
     }
 

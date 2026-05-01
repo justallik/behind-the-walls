@@ -9,7 +9,8 @@ public class HealthUI : MonoBehaviour
     [SerializeField] private TextMeshProUGUI healthText;   
 
     [Header("Жизни")]
-    [SerializeField] private Image[] lifeIcons; 
+    [SerializeField] private Image[] lifeIcons;       // ⚪ Белые жизни (видны при жизни)
+    [SerializeField] private Image[] redLifeIcons;    // 🔴 Красные жизни (видны при смерти)
 
     [Header("Эффект 1: Красная Рамка (при 40%)")]
     [SerializeField] private GameObject redBorderObject;    // Сюда твою рамку
@@ -111,9 +112,20 @@ public class HealthUI : MonoBehaviour
     {
         if (lifeIcons == null || lifeIcons.Length == 0) return;
         int currentLives = playerHealth.currentLives; 
+        
         for (int i = 0; i < lifeIcons.Length; i++)
         {
-            if (lifeIcons[i] != null) lifeIcons[i].enabled = (i < currentLives);
+            // ⚪ БЕЛАЯ жизнь - видна если персонаж ещё живой
+            if (lifeIcons[i] != null)
+            {
+                lifeIcons[i].enabled = (i < currentLives);
+            }
+            
+            // 🔴 КРАСНАЯ жизнь - видна если эта жизнь потрачена
+            if (redLifeIcons != null && i < redLifeIcons.Length && redLifeIcons[i] != null)
+            {
+                redLifeIcons[i].enabled = (i >= currentLives);
+            }
         }
     }
 }

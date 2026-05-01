@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
+using TMPro;
 
 public class ItemContextMenu : MonoBehaviour
 {
@@ -11,19 +12,35 @@ public class ItemContextMenu : MonoBehaviour
     [SerializeField] private Button dropButton;
     [SerializeField] private Button hotbarButton;
     [SerializeField] private CanvasGroup canvasGroup;
+    
+    [Header("Hint Panel (подсказка для хотбара)")]
+    [SerializeField] private GameObject hintPanel;
+    [SerializeField] private TextMeshProUGUI hintText;
+    [SerializeField] private Vector2 hintPanelOffset = new Vector2(5, 0); // смещение: X = отступ от меню, Y = смещение от центра
 
     private ItemData selectedItem = null;
 
     private void Awake()
     {
         if (instance == null)
+        {
             instance = this;
+            Debug.Log("✅ ItemContextMenu.instance инициализирована");
+            Debug.Log($"   GameObject: {gameObject.name}, Active: {gameObject.activeSelf}");
+        }
         else
+        {
+            Debug.LogWarning("⚠️ Несколько ItemContextMenu на сцене, оставляю первую");
             Destroy(gameObject);
+        }
     }
 
     private void Start()
     {
+        Debug.Log("🔴 ItemContextMenu.Start() ВЫЗВАНА");
+        Debug.Log($"   gameObject.activeSelf: {gameObject.activeSelf}");
+        Debug.Log($"   gameObject.activeInHierarchy: {gameObject.activeInHierarchy}");
+        
         if (menuPanel == null)
             menuPanel = gameObject;
         
@@ -184,6 +201,9 @@ public class ItemContextMenu : MonoBehaviour
         canvasGroup.blocksRaycasts = true;
         canvasGroup.interactable = true;
         
+        // 🔴 Когда меню открывается - пусть hint panel тоже активна, если она нужна
+        // (Но скрыта пока игрок не нажмет "Hotbar")
+        
         Debug.Log($"📋 МЕНЮ ОТКРЫТО: {item.itemName}");
     }
 
@@ -193,6 +213,15 @@ public class ItemContextMenu : MonoBehaviour
         canvasGroup.blocksRaycasts = false;
         canvasGroup.interactable = false;
         selectedItem = null;
+        
+        // 🔴 Закрываем hint panel
+        HideHintPanel();
+        
+        // Отменяем режим выбора слота если он был
+        if (HotbarManager.instance != null && HotbarManager.instance.IsPendingSlotSelection())
+        {
+            HotbarManager.instance.CancelSlotSelection();
+        }
     }
 
     public bool IsOpen()
@@ -295,74 +324,118 @@ public class ItemContextMenu : MonoBehaviour
             return;
         }
 
-        // Переходим в режим выбора слота
+        // ✅ Показываем hint panel рядом с меню
+        ShowHintPanel();
+
+        // Переходим в режим выбора слота в HotbarManager
         HotbarManager.instance.SetPendingItemForHotbar(selectedItem);
 
-        HideMenu();
+        // 🔴 НЕ закрываем меню! Hint panel будет видна рядом
+        // HideMenu();
+    }
+    
+    private void ShowHintPanel()
+    {
+        if (hintPanel == null) return;
+
+        hintPanel.SetActive(true);
+
+        RectTransform hintRect = hintPanel.GetComponent<RectTransform>();
+        RectTransform menuRect = menuPanel.GetComponent<RectTransform>();
+
+        if (hintRect != null && menuRect != null)
+        {
+            // ✅ Якорь — левый нижний угол родителя (меню)
+            hintRect.anchorMin = Vector2.zero;
+            hintRect.anchorMax = Vector2.zero;
+            // ✅ Pivot — левый центр хинт-панели
+            hintRect.pivot = new Vector2(0f, 0.5f);
+
+            // ✅ Ставим правее меню, по середине его высоты
+            hintRect.anchoredPosition = new Vector2(
+                menuRect.rect.width + hintPanelOffset.x,   // X: правый край меню + отступ
+                menuRect.rect.height * 0.5f + hintPanelOffset.y  // Y: середина меню
+            );
+            
+            Debug.Log($"✅ HintPanel позиция установлена: {hintRect.anchoredPosition}");
+        }
+
+        if (hintText != null)
+        {
+            hintText.text = "Выберите слот: 1  2  3  4 (Esc — отмена)";
+        }
+    }
+    
+    private void HideHintPanel()
+    {
+        if (hintPanel != null)
+        {
+            hintPanel.SetActive(false);
+
+        }
     }
 
     private void SpawnDroppedItem(ItemData itemData)
     {
-        Debug.Log($"🔴 SpawnDroppedItem ВЫЗВАНА для {itemData.itemName}");
+
         
         // Ищем камеру правильно
         Camera cam = FindFirstObjectByType<Camera>();
         if (!cam) 
         {
-            Debug.LogError("❌ Camera НЕ НАЙДЕНА!");
+
             return;
         }
 
         Vector3 pos = cam.transform.position + cam.transform.forward * 1.5f;
-        Debug.Log($"📍 Позиция спауна: {pos}");
 
-        Debug.Log($"🔭 Ищу объект {itemData.itemName}...");
+
+
         GameObject template = FindObjectByName(itemData.itemName);
         
         if (!template) 
         {
-            Debug.LogError($"❌❌❌ КРИТИЧЕСКАЯ ОШИБКА: Объект '{itemData.itemName}' НЕ НАЙДЕН на сцене!");
-            Debug.Log("Проверь: есть ли в иерархии объект Leaf или Knife с компонентом InteractableItem?");
+
             return;
         }
 
-        Debug.Log($"✅ Шаблон найден: {template.name}, активен: {template.activeSelf}");
+
 
         GameObject drop = Instantiate(template, pos, Quaternion.identity);
         drop.name = itemData.itemName + " (Dropped)";
         
-        Debug.Log($"✅✅✅ СПАУНИ УСПЕШЕН: {drop.name} создан на {pos}");
+
     }
 
     private GameObject FindObjectByName(string name)
     {
-        Debug.Log($"🔍 FindObjectByName ищет '{name}'");
+
         
 #pragma warning disable CS0618
         GameObject[] allObjects = FindObjectsOfType<GameObject>();
-        Debug.Log($"   Всего объектов на сцене: {allObjects.Length}");
+
         
         foreach (GameObject obj in allObjects)
         {
             if (obj.name.Contains(name))
             {
-                Debug.Log($"   Найден объект с похожим именем: {obj.name}");
+
                 
                 InteractableItem interactable = obj.GetComponent<InteractableItem>();
                 if (interactable)
                 {
-                    Debug.Log($"   ✅ ТОТ! {obj.name} имеет InteractableItem");
+
                     return obj;
                 }
                 else
                 {
-                    Debug.Log($"   ❌ {obj.name} НЕ имеет InteractableItem");
+
                 }
             }
         }
 #pragma warning restore CS0618
         
-        Debug.LogError($"❌ FindObjectByName: '{name}' НЕ НАЙДЕН!");
+
         return null;
     }
 }

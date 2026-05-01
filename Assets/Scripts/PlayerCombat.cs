@@ -67,7 +67,11 @@ public class PlayerCombat : MonoBehaviour
     private void PerformAttack()
     {
         lastAttackTime = Time.time;
-        ItemData weaponData = EquipmentManager.instance.currentEquippedItem;
+        ItemData weaponData = null;
+        if (EquipmentManager.instance != null)
+        {
+            weaponData = EquipmentManager.instance.currentEquippedItem;
+        }
 
         Debug.Log("🗡 Обычный взмах ножом");
         PlayWeaponAnimation("Attack");
@@ -127,7 +131,7 @@ public class PlayerCombat : MonoBehaviour
 
             // Тратим стамину на блокировку
             float staminaCost = 15f; 
-            if (EquipmentManager.instance.isEquipped && EquipmentManager.instance.currentEquippedItem != null)
+            if (EquipmentManager.instance != null && EquipmentManager.instance.isEquipped && EquipmentManager.instance.currentEquippedItem != null)
             {
                 staminaCost = EquipmentManager.instance.currentEquippedItem.blockStaminaCost;
             }
@@ -215,7 +219,11 @@ public class PlayerCombat : MonoBehaviour
             StealthSystem stealth = GetComponent<StealthSystem>();
             if (stealth != null) stealth.BreakStealth();
             
-            ItemData weaponData = EquipmentManager.instance.currentEquippedItem;
+            ItemData weaponData = null;
+            if (EquipmentManager.instance != null)
+            {
+                weaponData = EquipmentManager.instance.currentEquippedItem;
+            }
             if (weaponData != null) CheckHit(weaponData.weaponDamage * 2f, true);
         }
         else playerMovement.TriggerExhaustion();
@@ -240,7 +248,11 @@ public class PlayerCombat : MonoBehaviour
 
     private void PlayWeaponAnimation(string triggerName)
     {
-        GameObject activeWeapon = EquipmentManager.instance.GetActiveWeaponObject();
+        GameObject activeWeapon = null;
+        if (EquipmentManager.instance != null)
+        {
+            activeWeapon = EquipmentManager.instance.GetActiveWeaponObject();
+        }
         if (activeWeapon != null)
         {
             Animator anim = activeWeapon.GetComponent<Animator>();

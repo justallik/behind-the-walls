@@ -6,7 +6,7 @@ using UnityEngine;
 public class AutoSave
 {
     static double nextSave;
-    const double saveInterval = 100; // 3 минуты
+    const double saveInterval = 100; // 3 пїЅпїЅпїЅпїЅпїЅпїЅ
 
     static AutoSave()
     {
