@@ -83,6 +83,10 @@ public class EnemyAI : MonoBehaviour
         // ==================== ПРОВЕРКА ВИДИМОСТИ (СТЕЛС) ====================
         canSeePlayer = CanSeePlayer();
 
+        // Обновляем Speed параметр для аниматора
+        if (animator != null)
+            animator.SetFloat("Speed", agent.velocity.magnitude);
+
         // STATE MACHINE
         switch (currentState)
         {
@@ -307,6 +311,10 @@ public class EnemyAI : MonoBehaviour
         if (animator != null)
         {
             animator.SetBool("isMoving", newState == EnemyState.Chase || newState == EnemyState.Patrol);
+            
+            // Добавляем Roar при переходе в Aggro
+            if (newState == EnemyState.Aggro)
+                animator.SetTrigger("Roar");
         }
     }
 

@@ -113,13 +113,6 @@ public class Mous1111 : MonoBehaviour
         HandleHeadBobAndFootsteps();
         HandleDynamicFOV();
         HandleLanding();
-
-        if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
-        {
-            Cursor.lockState = Cursor.lockState == CursorLockMode.Locked
-                ? CursorLockMode.None
-                : CursorLockMode.Locked;
-        }
     }
 
     // ── 1. МЫШЬ + TILT ──────────────────────────────────────────────

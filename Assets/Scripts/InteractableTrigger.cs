@@ -6,7 +6,6 @@ public class InteractableTrigger : MonoBehaviour
     [SerializeField] private string questIdToIncrement;
 
     [Header("Интерактив")]
-    [SerializeField] private float interactionRange = 2f;
     [SerializeField] private KeyCode interactKey = KeyCode.E;
 
     private bool playerInRange = false;

@@ -84,13 +84,6 @@ public class PlayerMovement : MonoBehaviour
         if (controller == null || inputHandler == null || groundCheck == null) 
             return;
 
-        // � БЛОКИРОВКА ВВОДА ЕСЛИ ИДЁТ INTRO
-        if (WakeUpSceneController.introPlaying)
-        {
-            ApplyGravity();
-            controller.Move(new Vector3(0, velocity.y * Time.deltaTime, 0));
-            return;
-        }
 
         // �🛑 ЕСЛИ УКЛОНЯЕМСЯ - БЛОКИРУЕМ ОБЫЧНОЕ УПРАВЛЕНИЕ
         if (isDodging)

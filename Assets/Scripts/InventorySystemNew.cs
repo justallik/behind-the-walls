@@ -19,6 +19,11 @@ public class InventorySystemNew : MonoBehaviour
     public delegate void OnInventoryChanged();
     public event OnInventoryChanged inventoryChanged;
 
+    private bool inventoryUnlocked = false;
+
+    public delegate void OnInventoryUnlocked();
+    public event OnInventoryUnlocked inventoryUnlockedEvent;
+
     private void Awake()
     {
         if (instance == null)
@@ -349,4 +354,20 @@ public class InventorySystemNew : MonoBehaviour
         // Если не найдено в маленьких - пробуем большие слоты (оружие)
         return RemoveItemFromWeaponSlots(itemName);
     }
+
+    /// <summary>
+    /// Разблокировать инвентарь
+    /// </summary>
+    public void UnlockInventory()
+    {
+        if (inventoryUnlocked) return;
+        inventoryUnlocked = true;
+        Debug.Log("🎒 Инвентарь разблокирован!");
+        inventoryUnlockedEvent?.Invoke();
+    }
+
+    /// <summary>
+    /// Проверить, разблокирован ли инвентарь
+    /// </summary>
+    public bool IsInventoryUnlocked() => inventoryUnlocked;
 }

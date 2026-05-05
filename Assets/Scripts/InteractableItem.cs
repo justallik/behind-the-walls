@@ -64,6 +64,17 @@ public class InteractableItem : MonoBehaviour
             return;
         }
 
+        if (itemData.itemType == ItemData.ItemType.Backpack)
+        {
+            Debug.Log("🎒 Найден рюкзак!");
+            if (InventorySystemNew.instance != null)
+                InventorySystemNew.instance.UnlockInventory();
+            
+            TryUpdateQuest();
+            Destroy(gameObject);
+            return;
+        }
+
         // Для остального нужен InventorySystem
         if (InventorySystemNew.instance == null) return;
 

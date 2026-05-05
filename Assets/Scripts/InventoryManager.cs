@@ -9,9 +9,14 @@ public class InventoryManager : MonoBehaviour
     public List<InventorySlot> inventorySlots = new List<InventorySlot>();
     public int maxSlots = 20; // Максимум разных типов предметов
 
+    private bool inventoryUnlocked = false;
+
     // Событие - срабатывает когда добавили предмет
     public delegate void OnInventoryChanged();
     public event OnInventoryChanged inventoryChanged;
+
+    public delegate void OnInventoryUnlocked();
+    public event OnInventoryUnlocked inventoryUnlockedEvent;
 
     private void Awake()
     {
@@ -132,4 +137,20 @@ public class InventoryManager : MonoBehaviour
     {
         return inventorySlots;
     }
+
+    /// <summary>
+    /// Разблокировать инвентарь
+    /// </summary>
+    public void UnlockInventory()
+    {
+        if (inventoryUnlocked) return;
+        inventoryUnlocked = true;
+        Debug.Log("🎒 Инвентарь разблокирован!");
+        inventoryUnlockedEvent?.Invoke();
+    }
+
+    /// <summary>
+    /// Проверить, разблокирован ли инвентарь
+    /// </summary>
+    public bool IsInventoryUnlocked() => inventoryUnlocked;
 }

@@ -33,11 +33,7 @@ public class InventoryUINew : MonoBehaviour
     [SerializeField] private AudioClip openInventoryClip;
     [SerializeField] private AudioClip closeInventoryClip;
 
-    [Header("Меню паузы")]
-    public GameObject pauseMenuPanel; // Меню с кнопками Продолжить/Сохранить
-
     private bool isOpen = false;
-    private bool isPauseMenuOpen = false;
 
     private void Awake()
     {
@@ -124,15 +120,22 @@ public class InventoryUINew : MonoBehaviour
         // Q - toggle инвентаря
         if (Keyboard.current.qKey.wasPressedThisFrame)
         {
+            if (InventorySystemNew.instance != null && !InventorySystemNew.instance.IsInventoryUnlocked())
+                return;
+                
             if (isOpen) CloseInventory();
             else OpenInventory();
         }
         
-        // ESC - toggle меню паузы
+        // ESC - закрыть инвентарь
         if (Keyboard.current.escapeKey.wasPressedThisFrame)
         {
-            if (isPauseMenuOpen) ClosePauseMenu();
-            else OpenPauseMenu();
+            if (isOpen)
+            {
+                CloseInventory();
+                return; // не открываем паузу
+            }
+            // Если инвентарь закрыт — пусть PauseMenu сам обработает ESC
         }
         
         // ЛКМ - закрыть ПКМ-меню и отменить выбор слота (если инвентарь открыт)
@@ -157,52 +160,9 @@ public class InventoryUINew : MonoBehaviour
         }
     }
 
-    private void OpenPauseMenu()
-    {
-        isPauseMenuOpen = true;
-        Debug.Log("📋 Меню паузы открыто");
-        
-        if (pauseMenuPanel != null)
-        {
-            pauseMenuPanel.SetActive(true);
-            Time.timeScale = 0f; // Ставим игру на паузу
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-        }
-    }
-
-    private void ClosePauseMenu()
-    {
-        isPauseMenuOpen = false;
-        Debug.Log("📋 Меню паузы закрыто");
-        
-        if (pauseMenuPanel != null)
-        {
-            pauseMenuPanel.SetActive(false);
-            Time.timeScale = 1f; // Возобновляем игру
-            
-            if (isOpen)
-            {
-                Cursor.lockState = CursorLockMode.None;
-                Cursor.visible = true;
-            }
-            else
-            {
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
-            }
-        }
-    }
-
     private void OpenInventory()
     {
         isOpen = true;
-        
-        // Закрываем меню паузы если оно открыто
-        if (isPauseMenuOpen)
-        {
-            ClosePauseMenu();
-        }
         
         if (uiAudioSource != null && openInventoryClip != null)
         {
@@ -235,12 +195,6 @@ public class InventoryUINew : MonoBehaviour
         }
         
         isOpen = false;
-        
-        // Закрываем меню паузы если оно открыто
-        if (isPauseMenuOpen)
-        {
-            ClosePauseMenu();
-        }
         
         // ✅ Отменяем режим выбора слота для хотбара, если он был активен
         if (HotbarManager.instance != null)

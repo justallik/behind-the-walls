@@ -69,10 +69,6 @@ public class MouseMovement : MonoBehaviour
     {
         if (playerBody == null || Mouse.current == null) return;
 
-        // 🔒 БЛОКИРОВКА ВВОДА ЕСЛИ ИДЁТ INTRO
-        if (WakeUpSceneController.introPlaying)
-            return;
-
         // Пропускаем первый кадр чтобы избежать spike в мышке
         if (isFirstFrame)
         {
@@ -88,11 +84,6 @@ public class MouseMovement : MonoBehaviour
         HandleMouseAndTilt();
         HandleHeadBobAndFootsteps();
         HandleDynamicFOV();
-        
-        if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
-        {
-            Cursor.lockState = Cursor.lockState == CursorLockMode.Locked ? CursorLockMode.None : CursorLockMode.Locked;
-        }
     }
 
     // 1 & 3: ВРАЩЕНИЕ МЫШЬЮ И НАКЛОН ПРИ СТРЕЙФЕ

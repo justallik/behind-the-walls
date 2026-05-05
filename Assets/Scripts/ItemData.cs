@@ -7,7 +7,7 @@ using UnityEngine;
 public class ItemData : ScriptableObject
 {
     public string itemName = "Предмет";
-    public enum ItemType { Weapon, Note, HealthItem, Ammunition, Diary }
+    public enum ItemType { Weapon, Note, HealthItem, Ammunition, Diary, Backpack }
     public ItemType itemType;
 
     // --- ПОЛЕ ДНЕВНИКА ---

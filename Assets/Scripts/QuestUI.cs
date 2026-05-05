@@ -1,31 +1,44 @@
 using UnityEngine;
 using TMPro;
+using UnityEngine.InputSystem;
 
 public class QuestUI : MonoBehaviour
 {
-    [Header("UI - Одна строка задания")]
+    [Header("Анимация")]
+    [SerializeField] private Animator animator;
+
+    [Header("Контент")]
     [SerializeField] private TextMeshProUGUI questText;
     [SerializeField] private GameObject questPanel;
 
     private QuestManager questManager;
+    private bool isOpen = false;
+    private bool hasQuest = false;
 
     private void Start()
     {
         questManager = QuestManager.instance;
-        
+
         if (questManager == null)
         {
             Debug.LogError("❌ QuestManager не найден!");
             return;
         }
 
-        // Подписываемся на события
         questManager.OnQuestActivated += OnQuestActivated;
         questManager.OnQuestCompleted += OnQuestCompleted;
 
-        // Скрываем панель в начале
         if (questPanel != null)
             questPanel.SetActive(false);
+    }
+
+    private void Update()
+    {
+        if (hasQuest && Keyboard.current != null && Keyboard.current.tabKey.wasPressedThisFrame)
+        {
+            if (isOpen) Close();
+            else Open();
+        }
     }
 
     private void OnDestroy()
@@ -37,10 +50,17 @@ public class QuestUI : MonoBehaviour
         }
     }
 
-    // ==================== СОБЫТИЯ ====================
     private void OnQuestActivated(QuestData quest)
     {
-        DisplayQuest(quest);
+        hasQuest = true;
+
+        if (questPanel != null)
+            questPanel.SetActive(true);
+
+        if (questText != null)
+            questText.text = quest.GetFullObjective();
+
+        Open();
     }
 
     private void OnQuestCompleted(QuestData quest)
@@ -49,13 +69,18 @@ public class QuestUI : MonoBehaviour
             questText.text = $"✅ {quest.GetFullObjective()}";
     }
 
-    // ==================== ОТОБРАЖЕНИЕ ====================
-    private void DisplayQuest(QuestData quest)
+    private void Open()
     {
-        if (quest == null) return;
+        isOpen = true;
+        if (animator != null)
+            animator.Play("QuestOpen");
+    }
 
-        if (questPanel != null) questPanel.SetActive(true);
-        if (questText != null) questText.text = $"📍 {quest.GetFullObjective()}";
+    private void Close()
+    {
+        isOpen = false;
+        if (animator != null)
+            animator.Play("QuestClose");
     }
 }
 

@@ -6,10 +6,6 @@ public class QuestManager : MonoBehaviour
 {
     public static QuestManager instance;
 
-    [Header("UI - Простой текст задания")]
-    [SerializeField] private TextMeshProUGUI questText; // Одна строка!
-    [SerializeField] private GameObject questPanel;
-
     [Header("Квесты")]
     [SerializeField] private List<QuestData> allQuests = new List<QuestData>();
     private Dictionary<string, QuestData> questDict = new Dictionary<string, QuestData>();
@@ -26,6 +22,8 @@ public class QuestManager : MonoBehaviour
         if (instance == null)
         {
             instance = this;
+            // 👇 ИНИЦИАЛИЗАЦИЯ СЛОВАРЯ ЗДЕСЬ - ДО ЛЮБОГО Start()
+            InitializeQuests();
         }
         else
         {
@@ -37,7 +35,7 @@ public class QuestManager : MonoBehaviour
     private void Start()
     {
         Debug.Log("🚀 QuestManager Start()");
-        InitializeQuests();
+        // InitializeQuests() уже выполнена в Awake()
     }
 
     // ==================== ИНИЦИАЛИЗАЦИЯ ====================
@@ -68,10 +66,6 @@ public class QuestManager : MonoBehaviour
         }
 
         Debug.Log($"📊 Всего инициализировано квестов: {questDict.Count}");
-
-        // Скрываем панель в начале
-        if (questPanel != null)
-            questPanel.SetActive(false);
     }
 
     // ==================== АКТИВАЦИЯ КВЕСТА ====================
@@ -145,33 +139,7 @@ public class QuestManager : MonoBehaviour
     // ==================== ОБНОВЛЕНИЕ UI ====================
     private void UpdateQuestUI()
     {
-        Debug.Log("🖼️ UpdateQuestUI() вызвана");
-        
-        if (questText == null)
-        {
-            Debug.LogError("❌ questText НЕ НАЗНАЧЕН в Inspector!");
-            return;
-        }
-        if (questPanel == null)
-        {
-            Debug.LogWarning("⚠️ questPanel НЕ назначен, но это не критично");
-        }
-
-        if (currentQuest == null || !currentQuest.isActive)
-        {
-            Debug.Log("📍 Квест не активен, скрываем UI");
-            if (questPanel != null)
-                questPanel.SetActive(false);
-            questText.text = "";
-            return;
-        }
-
-        Debug.Log("✅ Показываем UI квеста");
-        if (questPanel != null)
-            questPanel.SetActive(true);
-
-        questText.text = $"📍 {currentQuest.GetFullObjective()}";
-        Debug.Log($"💬 Текст установлен: {questText.text}");
+        // UI управляется через QuestUI.cs
     }
 
     // ==================== ПОЛУЧЕНИЕ ИНФОРМАЦИИ ====================
@@ -195,6 +163,8 @@ public class QuestManager : MonoBehaviour
             return questDict[questId].isCompleted;
         return false;
     }
+
+    public List<QuestData> GetAllQuests() => new List<QuestData>(questDict.Values);
 
     // ==================== СОВМЕСТИМОСТЬ СО СТАРЫМ КОДОМ ====================
     public void UpdateQuest(string questText)

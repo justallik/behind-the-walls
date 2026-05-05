@@ -17,7 +17,6 @@ public class StaminaUI : MonoBehaviour
     private float targetFillAmount = 1f;
     // ⚡ ОПТИМИЗАЦИЯ: кэшируем предыдущие значения для проверки изменений
     private float lastStamina = -1f;
-    private bool lastCanSprint = true;
 
     void Start()
     {
