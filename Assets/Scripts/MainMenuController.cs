@@ -9,6 +9,8 @@ public class MainMenuController : MonoBehaviour
 
     public void NewGame()
     {
+        if (SaveSystem.instance != null)
+            SaveSystem.instance.DeleteSave();
         SceneManager.LoadScene(newGameScene);
     }
 

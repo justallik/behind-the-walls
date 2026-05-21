@@ -6,8 +6,9 @@ public class InteractableItem : MonoBehaviour
     public ItemData itemData;
 
     [Header("Квест")]
-    [TextArea]
-    public string questTextOnPickup;
+    public string questIdToComplete;     // завершить этот квест при подборе
+    public string questIdToActivate;     // активировать этот квест при подборе  
+    public string questIdToIncrement;    // инкрементировать счётчик при подборе
 
     private void Start()
     {
@@ -100,7 +101,23 @@ public class InteractableItem : MonoBehaviour
 
     private void TryUpdateQuest()
     {
-        if (!string.IsNullOrEmpty(questTextOnPickup) && QuestManager.instance != null)
-            QuestManager.instance.UpdateQuest(questTextOnPickup);
+        if (QuestManager.instance == null) return;
+
+        if (!string.IsNullOrEmpty(questIdToIncrement))
+            QuestManager.instance.IncrementQuestCounter(questIdToIncrement);
+
+        if (!string.IsNullOrEmpty(questIdToComplete))
+            QuestManager.instance.CompleteQuest(questIdToComplete);
+
+        if (!string.IsNullOrEmpty(questIdToActivate))
+            QuestManager.instance.ActivateQuest(questIdToActivate);
+
+        // Проверяем, получил ли игрок нож и разблокировал ли дневник
+        if ((itemData.itemType == ItemData.ItemType.Weapon && 
+            itemData.weaponSlotType == ItemData.WeaponSlotType.Knife) ||
+            itemData.itemType == ItemData.ItemType.Diary)
+        {
+            QuestManager.instance.TryCompleteSearchHuts();
+        }
     }
 }

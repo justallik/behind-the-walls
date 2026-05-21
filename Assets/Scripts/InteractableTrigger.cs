@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class InteractableTrigger : MonoBehaviour
 {
@@ -6,7 +7,6 @@ public class InteractableTrigger : MonoBehaviour
     [SerializeField] private string questIdToIncrement;
 
     [Header("Интерактив")]
-    [SerializeField] private KeyCode interactKey = KeyCode.E;
 
     private bool playerInRange = false;
     private bool hasInteracted = false;
@@ -30,7 +30,8 @@ public class InteractableTrigger : MonoBehaviour
 
     private void Update()
     {
-        if (playerInRange && Input.GetKeyDown(interactKey) && !hasInteracted)
+        if (playerInRange && Keyboard.current != null && 
+            Keyboard.current.eKey.wasPressedThisFrame && !hasInteracted)
         {
             Interact();
         }

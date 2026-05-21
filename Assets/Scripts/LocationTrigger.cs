@@ -5,6 +5,10 @@ public class LocationTrigger : MonoBehaviour
     [Header("Квест")]
     [SerializeField] private string questIdToComplete;
     [SerializeField] private string questIdToActivate;
+    [SerializeField] private string questIdToIncrement;
+
+    [Header("Проверка инвентаря")]
+    [SerializeField] private bool checkInventoryOnExit = false;
 
     private bool hasTriggered = false;
 
@@ -44,6 +48,33 @@ public class LocationTrigger : MonoBehaviour
         {
             QuestManager.instance.ActivateQuest(questIdToActivate);
             Debug.Log($"📍 Квест '{questIdToActivate}' активирован!");
+        }
+
+        // Повышаем счётчик квеста
+        if (!string.IsNullOrEmpty(questIdToIncrement))
+        {
+            QuestManager.instance.IncrementQuestCounter(questIdToIncrement);
+            Debug.Log($"📍 Счётчик квеста '{questIdToIncrement}' повышен!");
+        }
+    }
+
+    private void OnTriggerExit(Collider other)
+    {
+        if (!checkInventoryOnExit) return;
+        if (!other.CompareTag("Player")) return;
+
+        bool hasKnife = InventorySystemNew.instance.HasWeapon("Knife");
+        bool hasDiary = DiaryManager.instance.IsDiaryUnlocked();
+
+        if (hasKnife && hasDiary)
+        {
+            Debug.Log("🎬 Выход — запускаем катсцену!");
+            QuestManager.instance.CompleteQuest("quest_leave_hut");
+            QuestManager.instance.ActivateQuest("quest_survive");
+        }
+        else
+        {
+            Debug.Log("⚠️ Нет ножа или дневника!");
         }
     }
 }

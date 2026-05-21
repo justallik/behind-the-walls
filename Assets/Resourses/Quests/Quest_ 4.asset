@@ -15,7 +15,8 @@ MonoBehaviour:
   questId: quest_survive
   questObjective: "\u0412\u044B\u0436\u0438\u0432\u0438\u0442\u0435"
   isActive: 0
-  isCompleted: 0
+  isCompleted: 1
   useCounter: 0
   currentCount: 0
   maxCount: 1
+  nextQuestId: 

@@ -115,6 +115,11 @@ public class QuestManager : MonoBehaviour
         quest.CompleteQuest();
         UpdateQuestUI();
         OnQuestCompleted?.Invoke(quest);
+
+        if (!string.IsNullOrEmpty(quest.nextQuestId))
+        {
+            ActivateQuest(quest.nextQuestId);
+        }
     }
 
     // ==================== УВЕЛИЧЕНИЕ СЧЁТЧИКА ====================
@@ -130,9 +135,13 @@ public class QuestManager : MonoBehaviour
         quest.IncrementCounter();
         UpdateQuestUI();
 
-        if (quest.isCompleted)
+        if (quest.currentCount >= quest.maxCount)
         {
-            OnQuestCompleted?.Invoke(quest);
+            CompleteQuest(questId);
+        }
+        else
+        {
+            OnQuestActivated?.Invoke(quest);
         }
     }
 
@@ -140,6 +149,16 @@ public class QuestManager : MonoBehaviour
     private void UpdateQuestUI()
     {
         // UI управляется через QuestUI.cs
+    }
+
+    // ==================== СПЕЦИАЛЬНЫЕ ПРОВЕРКИ ====================
+    public void TryCompleteSearchHuts()
+    {
+        bool hasKnife = InventorySystemNew.instance.HasWeapon("Knife");
+        bool hasDiary = DiaryManager.instance.IsDiaryUnlocked();
+
+        if (hasKnife && hasDiary)
+            CompleteQuest("quest_search_huts");
     }
 
     // ==================== ПОЛУЧЕНИЕ ИНФОРМАЦИИ ====================

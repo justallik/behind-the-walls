@@ -41,6 +41,8 @@ public class IntroController : MonoBehaviour
         if (notePanel != null) notePanel.SetActive(false);
         if (hintPanel != null) hintPanel.SetActive(false);
         if (hudRoot != null) hudRoot.SetActive(false);
+
+        if (director != null) director.Play();
     }
 
     private void Update()

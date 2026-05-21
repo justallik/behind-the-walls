@@ -16,7 +16,8 @@ MonoBehaviour:
   questObjective: "\u041E\u0431\u044B\u0449\u0438\u0442\u0435 \u0437\u0430\u0431\u0440\u043E\u0448\u0435\u043D\u043D\u044B\u0435
     \u0445\u0438\u0436\u0438\u043D\u044B"
   isActive: 0
-  isCompleted: 0
-  useCounter: 1
+  isCompleted: 1
+  useCounter: 0
   currentCount: 0
-  maxCount: 5
+  maxCount: 1
+  nextQuestId: quest_leave_hut

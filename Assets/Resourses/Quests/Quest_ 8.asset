@@ -20,3 +20,4 @@ MonoBehaviour:
   useCounter: 0
   currentCount: 0
   maxCount: 1
+  nextQuestId: 

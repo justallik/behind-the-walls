@@ -18,6 +18,9 @@ public class QuestData : ScriptableObject
     public int currentCount = 0;
     public int maxCount = 1;
 
+    [Header("Цепочка квестов")]
+    public string nextQuestId; // ID следующего квеста который активируется автоматически
+
     public void Initialize()
     {
         isActive = false;
@@ -41,11 +44,6 @@ public class QuestData : ScriptableObject
         {
             currentCount++;
             Debug.Log($"📍 {GetFullObjective()}");
-            
-            if (currentCount >= maxCount)
-            {
-                CompleteQuest();
-            }
         }
     }
 

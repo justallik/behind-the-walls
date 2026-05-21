@@ -62,7 +62,14 @@ public class EnemyHealth : MonoBehaviour
         // 3. АКТИВИРУЕМ RAGDOLL
         EnableRagdoll();
 
-        // 4. Враг остаётся на сцене (для обыска)
+        // 4. Обновляем квесты
+        if (QuestManager.instance != null)
+        {
+            QuestManager.instance.CompleteQuest("quest_survive");
+            QuestManager.instance.ActivateQuest("quest_find_water");
+        }
+
+        // 5. Враг остаётся на сцене (для обыска)
     }
 
     // ==================== RAGDOLL ====================

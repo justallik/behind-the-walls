@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System.IO;
+using UnityEngine.SceneManagement;
 
 // ==================== ДАННЫЕ СОХРАНЕНИЯ ====================
 [System.Serializable]
@@ -48,7 +49,11 @@ public class SaveSystem : MonoBehaviour
 
     private void Awake()
     {
-        if (instance == null) instance = this;
+        if (instance == null)
+        {
+            instance = this;
+            DontDestroyOnLoad(gameObject);
+        }
         else Destroy(gameObject);
     }
 
@@ -190,4 +195,30 @@ public class SaveSystem : MonoBehaviour
     }
 
     public bool SaveExists() => File.Exists(savePath);
+
+    // ==================== УПРАВЛЕНИЕ СОХРАНЕНИЯМИ ====================
+    public void NewGame()
+    {
+        DeleteSave(); // сбрасываем сохранение
+        SceneManager.LoadScene("IntroQuote"); // загружаем первую сцену
+    }
+
+    [ContextMenu("Delete Save")]
+    public void DeleteSave()
+    {
+        if (File.Exists(savePath))
+        {
+            File.Delete(savePath);
+            Debug.Log("🗑️ Сохранение удалено!");
+        }
+    }
+
+    public void ContinueGame()
+    {
+        if (SaveExists())
+        {
+            SceneManager.LoadScene("SampleScene"); // сразу в игру
+            // Load() вызовется уже в самой сцене
+        }
+    }
 }

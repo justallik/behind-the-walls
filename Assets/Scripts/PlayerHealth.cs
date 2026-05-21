@@ -141,6 +141,12 @@ public class PlayerHealth : MonoBehaviour
         currentHealth += amount;
         currentHealth = Mathf.Clamp(currentHealth, 0f, maxHealth);
         Debug.Log($"💖 Здоровье восстановлено! Текущее HP: {currentHealth}/{maxHealth}");
+
+        if (currentHealth >= maxHealth && QuestManager.instance != null)
+        {
+            if (QuestManager.instance.IsQuestActive("quest_find_water"))
+                QuestManager.instance.CompleteQuest("quest_find_water");
+        }
     }
 
     public float GetCurrentHealth() => currentHealth;
