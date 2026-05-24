@@ -3,10 +3,8 @@ using UnityEngine.InputSystem;
 
 public class InteractableTrigger : MonoBehaviour
 {
-    [Header("Квест")]
+    [Header("Quest")]
     [SerializeField] private string questIdToIncrement;
-
-    [Header("Интерактив")]
 
     private bool playerInRange = false;
     private bool hasInteracted = false;
@@ -14,23 +12,18 @@ public class InteractableTrigger : MonoBehaviour
     private void OnTriggerEnter(Collider collision)
     {
         if (collision.CompareTag("Player"))
-        {
             playerInRange = true;
-            Debug.Log($"✋ Можно взаимодействовать с {gameObject.name} (нажми E)");
-        }
     }
 
     private void OnTriggerExit(Collider collision)
     {
         if (collision.CompareTag("Player"))
-        {
             playerInRange = false;
-        }
     }
 
     private void Update()
     {
-        if (playerInRange && Keyboard.current != null && 
+        if (playerInRange && Keyboard.current != null &&
             Keyboard.current.eKey.wasPressedThisFrame && !hasInteracted)
         {
             Interact();
@@ -43,11 +36,10 @@ public class InteractableTrigger : MonoBehaviour
 
         if (QuestManager.instance == null)
         {
-            Debug.LogError("❌ QuestManager не найден!");
+            Debug.LogError("QuestManager не знайдено");
             return;
         }
 
-        Debug.Log($"🔍 Обыскиваем {gameObject.name}...");
         QuestManager.instance.IncrementQuestCounter(questIdToIncrement);
     }
 }

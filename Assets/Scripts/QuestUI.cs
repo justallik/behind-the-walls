@@ -1,19 +1,24 @@
 using UnityEngine;
 using TMPro;
 using UnityEngine.InputSystem;
+using System.Collections;
 
 public class QuestUI : MonoBehaviour
 {
-    [Header("Анимация")]
+    [Header("Animation")]
     [SerializeField] private Animator animator;
 
-    [Header("Контент")]
+    [Header("Content")]
     [SerializeField] private TextMeshProUGUI questText;
     [SerializeField] private GameObject questPanel;
+
+    [Header("Settings")]
+    [SerializeField] private float closeDelay = 1.5f;
 
     private QuestManager questManager;
     private bool isOpen = false;
     private bool hasQuest = false;
+    private Coroutine closeCoroutine;
 
     private void Start()
     {
@@ -21,7 +26,7 @@ public class QuestUI : MonoBehaviour
 
         if (questManager == null)
         {
-            Debug.LogError("❌ QuestManager не найден!");
+            Debug.LogError("QuestManager не знайдено");
             return;
         }
 
@@ -54,19 +59,51 @@ public class QuestUI : MonoBehaviour
     {
         hasQuest = true;
 
+        // Скасовуємо закриття якщо воно було заплановане
+        if (closeCoroutine != null)
+        {
+            StopCoroutine(closeCoroutine);
+            closeCoroutine = null;
+        }
+
         if (questPanel != null)
             questPanel.SetActive(true);
 
         if (questText != null)
             questText.text = quest.GetFullObjective();
 
-        Open();
+        // Відкриваємо тільки якщо панель закрита
+        if (!isOpen)
+            Open();
     }
 
     private void OnQuestCompleted(QuestData quest)
     {
-        if (questText != null)
-            questText.text = $"✅ {quest.GetFullObjective()}";
+        hasQuest = false;
+
+        // Закриваємо з затримкою — якщо прийде новий квест то закриття скасується
+        if (closeCoroutine != null)
+            StopCoroutine(closeCoroutine);
+
+        closeCoroutine = StartCoroutine(CloseAfterDelay());
+    }
+
+    private IEnumerator CloseAfterDelay()
+    {
+        yield return new WaitForSeconds(closeDelay);
+
+        if (!hasQuest)
+        {
+            if (questText != null)
+                questText.text = "";
+
+            isOpen = false;
+
+            if (questPanel != null)
+                questPanel.SetActive(false);
+        }
+
+        closeCoroutine = null;
     }
 
     private void Open()
@@ -83,5 +120,3 @@ public class QuestUI : MonoBehaviour
             animator.Play("QuestClose");
     }
 }
-
-

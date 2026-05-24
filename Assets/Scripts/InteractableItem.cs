@@ -2,27 +2,27 @@ using UnityEngine;
 
 public class InteractableItem : MonoBehaviour
 {
-    [Header("Настройки предмета")]
+    [Header("Item Settings")]
     public ItemData itemData;
 
-    [Header("Квест")]
-    public string questIdToComplete;     // завершить этот квест при подборе
-    public string questIdToActivate;     // активировать этот квест при подборе  
-    public string questIdToIncrement;    // инкрементировать счётчик при подборе
+    [Header("Quest")]
+    public string questIdToComplete;
+    public string questIdToActivate;
+    public string questIdToIncrement;
+
+    [Header("Note")]
+    public bool playCutsceneOnClose = false;
 
     private void Start()
     {
-        // Скрываем записки если дневник не разблокирован
         if (itemData == null) return;
         if (itemData.itemType != ItemData.ItemType.Note) return;
 
-        // Если DiaryManager уже есть - скрываем записку если дневник не разблокирован
         if (DiaryManager.instance != null)
         {
             if (!DiaryManager.instance.IsDiaryUnlocked())
             {
                 gameObject.SetActive(false);
-                // Подписываемся на событие
                 DiaryManager.instance.diaryUnlockedEvent += OnDiaryUnlocked;
             }
         }
@@ -31,9 +31,7 @@ public class InteractableItem : MonoBehaviour
     private void OnDestroy()
     {
         if (DiaryManager.instance != null && itemData != null && itemData.itemType == ItemData.ItemType.Note)
-        {
             DiaryManager.instance.diaryUnlockedEvent -= OnDiaryUnlocked;
-        }
     }
 
     private void OnDiaryUnlocked()
@@ -45,21 +43,13 @@ public class InteractableItem : MonoBehaviour
     {
         if (itemData == null) return;
 
-        // Дневник - самый важный предмет, его должны моч подобрать всегда
         if (itemData.itemType == ItemData.ItemType.Diary)
         {
-            Debug.Log("📖 Найден дневник!");
-            
-            // Пытаемся разблокировать дневник если он есть
             if (DiaryManager.instance != null)
-            {
                 DiaryManager.instance.UnlockDiary();
-            }
             else
-            {
-                Debug.LogWarning("⚠️ DiaryManager не найден на сцене!");
-            }
-            
+                Debug.LogError("DiaryManager не знайдено");
+
             TryUpdateQuest();
             Destroy(gameObject);
             return;
@@ -67,31 +57,43 @@ public class InteractableItem : MonoBehaviour
 
         if (itemData.itemType == ItemData.ItemType.Backpack)
         {
-            Debug.Log("🎒 Найден рюкзак!");
-            if (InventorySystemNew.instance != null)
-                InventorySystemNew.instance.UnlockInventory();
-            
+            if (InventorySystem.instance != null)
+                InventorySystem.instance.UnlockInventory();
+            else
+                Debug.LogError("InventorySystem не знайдено");
+
             TryUpdateQuest();
             Destroy(gameObject);
             return;
         }
 
-        // Для остального нужен InventorySystem
-        if (InventorySystemNew.instance == null) return;
+        if (InventorySystem.instance == null) return;
 
-        // Записка
         if (itemData.itemType == ItemData.ItemType.Note)
         {
             if (DiaryManager.instance != null && DiaryManager.instance.IsDiaryUnlocked())
                 DiaryManager.instance.AddEntryByID(itemData.diaryEntryID);
-            
-            TryUpdateQuest();
+
+            if (NoteViewer.instance != null)
+            {
+                NoteViewer.instance.ShowNote(
+                    itemData.diaryEntryID,
+                    questIdToComplete,
+                    questIdToActivate,
+                    playCutsceneOnClose
+                );
+            }
+            else
+            {
+                Debug.LogError("NoteViewer не знайдено");
+                TryUpdateQuest();
+            }
+
             Destroy(gameObject);
             return;
         }
 
-        // Остальные предметы
-        bool success = InventorySystemNew.instance.AddItem(itemData, 1);
+        bool success = InventorySystem.instance.AddItem(itemData, 1);
         if (success)
         {
             TryUpdateQuest();
@@ -112,8 +114,7 @@ public class InteractableItem : MonoBehaviour
         if (!string.IsNullOrEmpty(questIdToActivate))
             QuestManager.instance.ActivateQuest(questIdToActivate);
 
-        // Проверяем, получил ли игрок нож и разблокировал ли дневник
-        if ((itemData.itemType == ItemData.ItemType.Weapon && 
+        if ((itemData.itemType == ItemData.ItemType.Weapon &&
             itemData.weaponSlotType == ItemData.WeaponSlotType.Knife) ||
             itemData.itemType == ItemData.ItemType.Diary)
         {

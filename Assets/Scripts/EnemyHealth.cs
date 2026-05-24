@@ -3,30 +3,26 @@ using System.Collections;
 
 public class EnemyHealth : MonoBehaviour
 {
+    [Header("Health")]
     public float maxHealth = 100f;
     private float currentHealth;
     public bool isKnockout = false;
 
-    [Header("Ragdoll")]
-    [SerializeField] private Rigidbody[] ragdollBodies;  // Все риджбоди для ragdoll
+    [Header("Death")]
+    public int diaryEntryOnDeath = 11;
 
-    void Start()
+    [Header("Quests")]
+    [SerializeField] private string questToCompleteOnDeath = "quest_survive";
+    [SerializeField] private string questToActivateOnDeath = "quest_find_water";
+
+    private void Start()
     {
         currentHealth = maxHealth;
-        
-        // Собираем все риджбоди детей для ragdoll
-        ragdollBodies = GetComponentsInChildren<Rigidbody>();
-        
-        // По умолчанию все риджбоди отключены (враг живой и управляется AI)
-        DisableRagdoll();
     }
 
     public void TakeDamage(float amount)
     {
         currentHealth -= amount;
-        
-        Debug.Log($"🩸 Враг получил урон: {amount}. Осталось здоровья: {currentHealth}");
-        
         if (currentHealth <= 0) Die();
     }
 
@@ -39,71 +35,32 @@ public class EnemyHealth : MonoBehaviour
     private IEnumerator KnockoutRoutine(float duration)
     {
         isKnockout = true;
-        Debug.Log("🥴 Враг в нокауте!");
-
+        Debug.Log($"{gameObject.name} в нокауті");
         yield return new WaitForSeconds(duration);
-
         isKnockout = false;
-        Debug.Log("🧟 Враг пришел в себя!");
+        Debug.Log($"{gameObject.name} прийшов до тями");
     }
 
-    void Die() 
-    { 
-        Debug.Log("💀 Враг повержен!");
+    private void Die()
+    {
+        Debug.Log($"{gameObject.name} переможено");
 
-        // 1. Переводим AI в состояние "Die"
         EnemyAI ai = GetComponent<EnemyAI>();
         if (ai != null) ai.SetDead();
 
-        // 2. Отключаем NavMeshAgent
         UnityEngine.AI.NavMeshAgent agent = GetComponent<UnityEngine.AI.NavMeshAgent>();
         if (agent != null) agent.enabled = false;
 
-        // 3. АКТИВИРУЕМ RAGDOLL
-        EnableRagdoll();
+        if (DiaryManager.instance != null && diaryEntryOnDeath > 0)
+            DiaryManager.instance.AddEntryByID(diaryEntryOnDeath);
 
-        // 4. Обновляем квесты
         if (QuestManager.instance != null)
         {
-            QuestManager.instance.CompleteQuest("quest_survive");
-            QuestManager.instance.ActivateQuest("quest_find_water");
-        }
+            if (!string.IsNullOrEmpty(questToCompleteOnDeath))
+                QuestManager.instance.CompleteQuest(questToCompleteOnDeath);
 
-        // 5. Враг остаётся на сцене (для обыска)
-    }
-
-    // ==================== RAGDOLL ====================
-    private void EnableRagdoll()
-    {
-        Debug.Log("💀 Включаем Ragdoll...");
-        
-        // Включаем все риджбоди
-        foreach (Rigidbody rb in ragdollBodies)
-        {
-            if (rb != null)
-            {
-                rb.isKinematic = false;
-                rb.useGravity = true;
-            }
-        }
-
-        // Даем телу маленький импульс вверх для реалистичности
-        if (ragdollBodies.Length > 0 && ragdollBodies[0] != null)
-        {
-            ragdollBodies[0].linearVelocity = new Vector3(0, 2f, 0);
-        }
-    }
-
-    private void DisableRagdoll()
-    {
-        // Отключаем все риджбоди (враг управляется AI)
-        foreach (Rigidbody rb in ragdollBodies)
-        {
-            if (rb != null)
-            {
-                rb.isKinematic = true;
-                rb.useGravity = false;
-            }
+            if (!string.IsNullOrEmpty(questToActivateOnDeath))
+                QuestManager.instance.ActivateQuest(questToActivateOnDeath);
         }
     }
 

@@ -9,17 +9,16 @@ public class DialogueManager : MonoBehaviour
     [SerializeField] private GameObject dialoguePanel;
     [SerializeField] private TextMeshProUGUI dialogueText;
 
-    [Header("Реплики (для Timeline)")]
+    [Header("Lines")]
     [SerializeField] private string[] lines;
 
     private int currentLine = 0;
 
-    void Awake()
+    private void Awake()
     {
         Instance = this;
     }
 
-    // Для Timeline сигналів (як раніше)
     public void ShowNextLine()
     {
         if (currentLine >= lines.Length) return;
@@ -28,7 +27,6 @@ public class DialogueManager : MonoBehaviour
         currentLine++;
     }
 
-    // Для геймплейних тригерів
     public void ShowLine(string text)
     {
         if (dialoguePanel != null) dialoguePanel.SetActive(true);

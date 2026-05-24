@@ -4,17 +4,17 @@ using UnityEngine.InputSystem;
 
 public class ItemSelector : MonoBehaviour
 {
-    [Header("Настройки луча")]
+    [Header("Ray Settings")]
     public Camera playerCamera;
     public float rayDistance = 2.5f;
     public LayerMask interactableMask = ~0;
 
-    [Header("UI (Интерфейс)")]
+    [Header("UI")]
     public GameObject promptUI;
     public TextMeshProUGUI tmpText;
 
     private InteractableItem currentItem;
-    private InteractableBed currentBed; // ДОБАВЛЕНО: Следим за кроватью
+    private InteractableBed currentBed;
 
     private float lastDetectionTime = 0f;
     private const float DETECTION_DELAY = 0.05f;
@@ -29,9 +29,8 @@ public class ItemSelector : MonoBehaviour
         }
     }
 
-    void Update()
+    private void Update()
     {
-        // Нажатие на E
         if (Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame)
         {
             if (currentItem != null)
@@ -40,7 +39,7 @@ public class ItemSelector : MonoBehaviour
                 ClearSelection();
                 return;
             }
-            else if (currentBed != null) // ДОБАВЛЕНО: Сон по нажатию
+            else if (currentBed != null)
             {
                 currentBed.Interact();
                 ClearSelection();
@@ -58,54 +57,42 @@ public class ItemSelector : MonoBehaviour
     private void DetectItem()
     {
         Ray ray = playerCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0));
-        
+
         InteractableItem foundItem = null;
         InteractableBed foundBed = null;
 
-        // Пускаем один луч для всего
         if (Physics.Raycast(ray, out RaycastHit hit, rayDistance, interactableMask))
         {
-            // Сначала ищем на самом объекте, потом на родителях
             foundItem = hit.collider.GetComponent<InteractableItem>();
             if (foundItem == null)
                 foundItem = hit.collider.GetComponentInParent<InteractableItem>();
-            
-            // Если это не предмет, проверяем, может это кровать?
+
             if (foundItem == null)
-            {
                 foundBed = hit.collider.GetComponentInParent<InteractableBed>();
-            }
         }
 
-        // --- ЛОГИКА ОТОБРАЖЕНИЯ ---
-
-        // 1. Смотрим на ПРЕДМЕТ
         if (foundItem != null)
         {
             if (currentItem != foundItem)
             {
                 currentItem = foundItem;
-                currentBed = null; // Забываем про кровать
+                currentBed = null;
                 UpdateItemUI();
             }
         }
-        // 2. Смотрим на КРОВАТЬ
         else if (foundBed != null)
         {
             if (currentBed != foundBed)
             {
                 currentBed = foundBed;
-                currentItem = null; // Забываем про предмет
+                currentItem = null;
                 UpdateBedUI();
             }
         }
-        // 3. Смотрим в ПУСТОТУ
         else
         {
             if (currentItem != null || currentBed != null)
-            {
                 ClearSelection();
-            }
         }
     }
 
@@ -113,14 +100,9 @@ public class ItemSelector : MonoBehaviour
     {
         if (currentItem == null || currentItem.itemData == null) return;
 
-        string actionText;
-        
-        if (currentItem.itemData.itemType == ItemData.ItemType.Note)
-            actionText = "Прочитать ";
-        else if (currentItem.itemData.itemType == ItemData.ItemType.Diary)
-            actionText = "Взять ";
-        else
-            actionText = "Взять ";
+        string actionText = currentItem.itemData.itemType == ItemData.ItemType.Note
+            ? "Прочитати "
+            : "Взяти ";
 
         if (tmpText != null)
             tmpText.text = "[E] " + actionText + currentItem.itemData.itemName;
@@ -132,13 +114,13 @@ public class ItemSelector : MonoBehaviour
     private void UpdateBedUI()
     {
         if (tmpText != null)
-            tmpText.text = "[E] Лечь спать";
+            tmpText.text = "[E] Лягти спати";
 
         if (promptUI != null)
             promptUI.SetActive(true);
     }
 
-    void ClearSelection()
+    private void ClearSelection()
     {
         currentItem = null;
         currentBed = null;

@@ -6625,7 +6625,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d8d768e6624fc7e4886718dd43a100cb, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::InventorySystemNew
+  m_EditorClassIdentifier: Assembly-CSharp::InventorySystem
   smallSlots: []
   maxSmallSlots: 12
   weaponSlots: []

@@ -2,21 +2,30 @@ using UnityEngine;
 
 public class DialogueTrigger : MonoBehaviour
 {
-    [Header("Діалог")]
+    [Header("Dialogue")]
     [SerializeField] private string line;
     [SerializeField] private float hideAfterSeconds = 4f;
 
-    [Header("Озвучка")]
+    [Header("Voice")]
     [SerializeField] private AudioClip voiceClip;
     [SerializeField] private AudioSource audioSource;
 
-    [Header("Квести")]
+    [Header("Invisible Wall")]
+    [SerializeField] private GameObject invisibleWall;
+
+    [Header("Quest")]
     [SerializeField] private bool completeQuest;
     [SerializeField] private string completeQuestId;
     [SerializeField] private bool activateQuest;
     [SerializeField] private string activateQuestId;
 
     private bool _triggered;
+
+    private void Start()
+    {
+        if (invisibleWall != null)
+            invisibleWall.SetActive(true);
+    }
 
     private void OnTriggerEnter(Collider other)
     {
@@ -25,11 +34,13 @@ public class DialogueTrigger : MonoBehaviour
 
         _triggered = true;
 
+        if (invisibleWall != null)
+            invisibleWall.SetActive(false);
+
         if (!string.IsNullOrEmpty(line))
         {
             DialogueManager.Instance.ShowLine(line);
 
-            // Якщо є озвучка — ховаємо після кліпу, інакше по таймеру
             if (voiceClip != null && audioSource != null)
             {
                 audioSource.PlayOneShot(voiceClip);

@@ -1,24 +1,38 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using System.IO;
 
 public class MainMenuController : MonoBehaviour
 {
-    [Header("Назви сцен")]
+    [Header("Scene Names")]
     [SerializeField] private string newGameScene = "IntroQuote";
     [SerializeField] private string continueScene = "SampleScene";
 
+    private string savePath => Application.persistentDataPath + "/save.json";
+
     public void NewGame()
     {
-        if (SaveSystem.instance != null)
-            SaveSystem.instance.DeleteSave();
+        // Видаляємо збереження якщо є
+        if (File.Exists(savePath))
+        {
+            File.Delete(savePath);
+            Debug.Log("Збереження видалено — нова гра");
+        }
+
         SceneManager.LoadScene(newGameScene);
     }
 
     public void Continue()
     {
-        // Поки що просто завантажує SampleScene
-        // Пізніше тут буде завантаження SaveSystem
-        SceneManager.LoadScene(continueScene);
+        if (File.Exists(savePath))
+        {
+            SceneManager.LoadScene(continueScene);
+        }
+        else
+        {
+            Debug.LogWarning("Збереження не знайдено");
+            // Тут можна показати повідомлення на екрані
+        }
     }
 
     public void QuitGame()

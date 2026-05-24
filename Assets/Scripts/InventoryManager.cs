@@ -4,14 +4,13 @@ using UnityEngine;
 public class InventoryManager : MonoBehaviour
 {
     public static InventoryManager instance;
-    
-    [Header("Инвентарь")]
+
+    [Header("Inventory")]
     public List<InventorySlot> inventorySlots = new List<InventorySlot>();
-    public int maxSlots = 20; // Максимум разных типов предметов
+    public int maxSlots = 20;
 
     private bool inventoryUnlocked = false;
 
-    // Событие - срабатывает когда добавили предмет
     public delegate void OnInventoryChanged();
     public event OnInventoryChanged inventoryChanged;
 
@@ -20,11 +19,8 @@ public class InventoryManager : MonoBehaviour
 
     private void Awake()
     {
-        // Синглтон - гарантируем, что на сцене только один InventoryManager
         if (instance == null)
-        {
             instance = this;
-        }
         else
         {
             Destroy(gameObject);
@@ -32,66 +28,51 @@ public class InventoryManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Добавить предмет в инвентарь
-    /// </summary>
     public bool AddItem(ItemData itemData, int amount = 1)
     {
         if (itemData == null)
         {
-            Debug.LogError("ItemData is null!");
+            Debug.LogError("ItemData є null");
             return false;
         }
 
-        // 1. Ищем существующий слот с этим предметом
         foreach (InventorySlot slot in inventorySlots)
         {
             if (slot.itemData != null && slot.itemData.itemName == itemData.itemName)
             {
-                // Нашли! Пытаемся добавить в существующий слот
                 int canAdd = slot.GetRemainingSpace();
                 if (canAdd >= amount)
                 {
                     slot.count += amount;
-                    Debug.Log($"Добавлено {amount} x {itemData.itemName} (всего: {slot.count})");
-                    inventoryChanged?.Invoke(); // Событие для обновления UI
+                    inventoryChanged?.Invoke();
                     return true;
                 }
                 else if (canAdd > 0)
                 {
                     slot.count += canAdd;
                     amount -= canAdd;
-                    Debug.Log($"Слот заполнен. Остаток: {amount}");
-                    // Продолжаем цикл, может создадим новый слот
                 }
             }
         }
 
-        // 2. Если слота нет или не хватает места - создаём новый слот
         if (inventorySlots.Count < maxSlots)
         {
             int addNow = Mathf.Min(amount, itemData.maxStackSize);
             InventorySlot newSlot = new InventorySlot(itemData, addNow);
             inventorySlots.Add(newSlot);
-            Debug.Log($"Новый слот: {addNow} x {itemData.itemName}");
-            inventoryChanged?.Invoke(); // Событие для обновления UI
+            inventoryChanged?.Invoke();
 
-            // Если осталось больше - рекурсивно добавляем остаток
             int remaining = amount - addNow;
             if (remaining > 0)
-            {
                 return AddItem(itemData, remaining);
-            }
+
             return true;
         }
 
-        Debug.LogWarning("Инвентарь переполнен!");
+        Debug.LogWarning("Інвентар переповнений");
         return false;
     }
 
-    /// <summary>
-    /// Удалить предмет из инвентаря
-    /// </summary>
     public bool RemoveItem(string itemName, int amount = 1)
     {
         for (int i = inventorySlots.Count - 1; i >= 0; i--)
@@ -102,11 +83,9 @@ public class InventoryManager : MonoBehaviour
                 {
                     inventorySlots[i].count -= amount;
                     if (inventorySlots[i].count == 0)
-                    {
                         inventorySlots.RemoveAt(i);
-                    }
-                    Debug.Log($"Удалено {amount} x {itemName}");
-                    inventoryChanged?.Invoke(); // Отправляем событие об изменении
+
+                    inventoryChanged?.Invoke();
                     return true;
                 }
             }
@@ -114,43 +93,26 @@ public class InventoryManager : MonoBehaviour
         return false;
     }
 
-    /// <summary>
-    /// Получить количество предмета в инвентаре
-    /// </summary>
     public int GetItemCount(string itemName)
     {
         int total = 0;
         foreach (InventorySlot slot in inventorySlots)
         {
             if (slot.itemData != null && slot.itemData.itemName == itemName)
-            {
                 total += slot.count;
-            }
         }
         return total;
     }
 
-    /// <summary>
-    /// Получить все слоты инвентаря (для UI)
-    /// </summary>
-    public List<InventorySlot> GetAllSlots()
-    {
-        return inventorySlots;
-    }
+    public List<InventorySlot> GetAllSlots() => inventorySlots;
 
-    /// <summary>
-    /// Разблокировать инвентарь
-    /// </summary>
     public void UnlockInventory()
     {
         if (inventoryUnlocked) return;
         inventoryUnlocked = true;
-        Debug.Log("🎒 Инвентарь разблокирован!");
+        Debug.Log("Інвентар розблоковано");
         inventoryUnlockedEvent?.Invoke();
     }
 
-    /// <summary>
-    /// Проверить, разблокирован ли инвентарь
-    /// </summary>
     public bool IsInventoryUnlocked() => inventoryUnlocked;
 }

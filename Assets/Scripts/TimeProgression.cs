@@ -6,14 +6,14 @@ public class TimeProgression : MonoBehaviour
     public class QuestTimeEntry
     {
         public string questId;
-        public float targetHour; // час на который переключить время
+        public float targetHour;
     }
 
-    [Header("Привязка времени к квестам")]
+    [Header("Quest Time Steps")]
     public QuestTimeEntry[] questTimeSteps;
 
-    [Header("Плавность перехода")]
-    public float transitionSpeed = 10f; // насколько быстро время "догоняет" цель
+    [Header("Settings")]
+    public float transitionSpeed = 10f;
 
     private Tenkoku.Core.TenkokuModule tenkoku;
     private float targetTime = -1f;
@@ -23,7 +23,7 @@ public class TimeProgression : MonoBehaviour
         tenkoku = FindFirstObjectByType<Tenkoku.Core.TenkokuModule>();
         if (tenkoku == null)
         {
-            Debug.LogError("❌ TimeProgression: Tenkoku не найден!");
+            Debug.LogError("TimeProgression: Tenkoku не знайдено");
             return;
         }
 
@@ -41,12 +41,11 @@ public class TimeProgression : MonoBehaviour
     {
         if (tenkoku == null || targetTime < 0f) return;
 
-        // Плавно двигаем время к цели
         float current = tenkoku.currentHour;
         if (Mathf.Abs(current - targetTime) > 0.05f)
-            tenkoku.currentHour = Mathf.MoveTowards(current, targetTime, transitionSpeed * Time.deltaTime);
+            tenkoku.currentHour = (int)Mathf.MoveTowards(current, targetTime, transitionSpeed * Time.deltaTime);
         else
-            targetTime = -1f; // достигли цели
+            targetTime = -1f;
     }
 
     private void OnQuestCompleted(QuestData quest)
@@ -56,7 +55,7 @@ public class TimeProgression : MonoBehaviour
             if (entry.questId == quest.questId)
             {
                 targetTime = entry.targetHour;
-                Debug.Log($"⏰ Квест '{quest.questId}' завершён → время движется к {entry.targetHour}:00");
+                Debug.Log($"Квест '{quest.questId}' завершено — час рухається до {entry.targetHour}:00");
                 return;
             }
         }

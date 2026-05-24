@@ -1,67 +1,86 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.InputSystem;
 
-/// <summary>
-/// Управление камерой и мышью с реалистичным head bob эффектом для ощущения веса
-/// </summary>
 public class MouseMovement : MonoBehaviour
 {
-    [Header("═══ ЧУВСТВИТЕЛЬНОСТЬ ═══")]
-    [SerializeField] private float mouseSensitivity = 35f;
-    
-    [Header("═══ ДИНАМИЧЕСКИЙ FOV (СКОРОСТЬ) ═══")]
+    [Header("Sensitivity")]
+    [SerializeField] private float mouseSensitivity = 100f;
+    [SerializeField] private float mouseInertia = 16f;
+
+    [Header("Dynamic FOV")]
     [SerializeField] private float normalFOV = 60f;
     [SerializeField] private float sprintFOV = 70f;
-    [SerializeField] private float fovChangeSpeed = 10f; // Насколько плавно меняется угол
-    
-    [Header("═══ НАКЛОН КАМЕРЫ (TILT) ═══")]
-    [SerializeField] private float maxTiltAngle = 1f; // Градус наклона
-    [SerializeField] private float tiltSpeed = 6f;      // Скорость наклона
-    
-    [Header("═══ HEAD BOB (ПОКАЧИВАНИЕ И ДЫХАНИЕ) ═══")]
+    [SerializeField] private float fovChangeSpeed = 10f;
+
+    [Header("Camera Tilt")]
+    [SerializeField] private float maxTiltAngle = 2.5f;
+    [SerializeField] private float tiltSpeed = 6f;
+    [SerializeField] private float bobTiltStrength = 18f;
+
+    [Header("Head Bob")]
     [SerializeField] private float crouchBobFrequency = 0.9f;
-    [SerializeField] private float crouchBobIntensity = 0.06f;
+    [SerializeField] private float crouchBobIntensity = 0.05f;
     [SerializeField] private float walkBobFrequency = 1.2f;
     [SerializeField] private float walkBobIntensity = 0.07f;
     [SerializeField] private float sprintBobFrequency = 2.05f;
     [SerializeField] private float sprintBobIntensity = 0.115f;
     [SerializeField] private float idleBobFrequency = 0.5f;
     [SerializeField] private float idleBobIntensity = 0.015f;
-    
-    [Header("═══ ЗВУКИ ШАГОВ ═══")]
+    [SerializeField] private float stateTransitionSpeed = 4f;
+
+    [Header("Exhaustion")]
+    [SerializeField] private float exhaustionMultiplier = 2.2f;
+    [SerializeField] private float exhaustionDecaySpeed = 1.2f;
+
+    [Header("Landing")]
+    [SerializeField] private float landImpactStrength = 0.06f;
+    [SerializeField] private float landSpringStiffness = 14f;
+    [SerializeField] private float landSpringDamping = 7f;
+    [SerializeField] private float landImpactSpeedThreshold = 2f;
+
+    [Header("Footsteps")]
     [SerializeField] private AudioSource footstepAudioSource;
-    [SerializeField] private AudioClip[] footstepSounds; // Сюда закинь 3-4 звука шагов
+    [SerializeField] private AudioClip[] footstepSounds;
     [Range(-1f, 1f)]
-    [SerializeField] private float stepTriggerThreshold = -0.9f; // Точка синусоиды (низ), где звучит шаг
+    [SerializeField] private float stepTriggerThreshold = -0.9f;
 
     public Transform playerBody;
 
     private float xRotation = 0f;
     private float currentTilt = 0f;
+    private float smoothMouseX = 0f;
+    private float smoothMouseY = 0f;
+    private bool isFirstFrame = true;
+
     private float headBobTimer = 0f;
+    private float currentFrequency = 0f;
+    private float currentIntensity = 0f;
+    private float bobTiltOffset = 0f;
     private Vector3 originalCameraPosition;
     private bool stepTaken = false;
-    private bool isFirstFrame = true; // Защита от первого spike движения мыши
-    
+
+    private float exhaustionLevel = 0f;
+
+    private float springVelocity = 0f;
+    private float springOffset = 0f;
+    private bool wasGrounded = false;
+
     private PlayerInputHandler inputHandler;
-    private PlayerMovement playerMovement;  // Ссылка на PlayerMovement
+    private PlayerMovement playerMovement;
     private Camera cam;
 
     private void Start()
     {
         Cursor.lockState = CursorLockMode.Locked;
 
-        // Автопоиск playerBody
         if (playerBody == null)
-        {
             playerBody = transform.parent;
-        }
-        
+
         originalCameraPosition = transform.localPosition;
         inputHandler = playerBody.GetComponent<PlayerInputHandler>();
-        playerMovement = playerBody.GetComponent<PlayerMovement>();  // Получаем PlayerMovement
+        playerMovement = playerBody.GetComponent<PlayerMovement>();
         cam = GetComponent<Camera>();
-        
+
         if (cam != null) cam.fieldOfView = normalFOV;
     }
 
@@ -69,74 +88,48 @@ public class MouseMovement : MonoBehaviour
     {
         if (playerBody == null || Mouse.current == null) return;
 
-        // Пропускаем первый кадр чтобы избежать spike в мышке
         if (isFirstFrame)
         {
-            Mouse.current.delta.ReadValue(); // Просто читаем и выбрасываем
+            Mouse.current.delta.ReadValue();
             isFirstFrame = false;
             return;
         }
 
-        // Если открыт инвентарь — управление курсором делает InventoryUINew
-        if (InventoryUINew.instance != null && InventoryUINew.instance.IsOpen())
-            return;
-
         HandleMouseAndTilt();
         HandleHeadBobAndFootsteps();
         HandleDynamicFOV();
+        HandleLanding();
     }
 
-    // 1 & 3: ВРАЩЕНИЕ МЫШЬЮ И НАКЛОН ПРИ СТРЕЙФЕ
     private void HandleMouseAndTilt()
     {
-        // 🎯 ЕСЛИ КУРСОР FREE (инвентарь/меню открыто) - не крутим камеру
         if (Cursor.lockState != CursorLockMode.Locked) return;
 
         Vector2 mouseDelta = Mouse.current.delta.ReadValue();
-        
-        // Защита от БОЛЬШИХ движений мыши (резкий драг по коллайдеру)
-        // Уменьшили до 30 пиксельм чтобы гарантировано не слетала камера
-        float maxDeltaPerFrame = 30f;
-        float deltaLength = mouseDelta.magnitude;
-        if (deltaLength > maxDeltaPerFrame)
-        {
-            mouseDelta = mouseDelta.normalized * maxDeltaPerFrame;
-        }
-        
-        float mouseX = mouseDelta.x * mouseSensitivity * Time.deltaTime;
-        float mouseY = mouseDelta.y * mouseSensitivity * Time.deltaTime;
 
-        xRotation -= mouseY;
+        float maxDeltaPerFrame = 50f;
+        if (mouseDelta.magnitude > maxDeltaPerFrame)
+            mouseDelta = mouseDelta.normalized * maxDeltaPerFrame;
+
+        float rawX = mouseDelta.x * mouseSensitivity * Time.deltaTime;
+        float rawY = mouseDelta.y * mouseSensitivity * Time.deltaTime;
+
+        smoothMouseX = Mathf.Lerp(smoothMouseX, rawX, Time.deltaTime * mouseInertia);
+        smoothMouseY = Mathf.Lerp(smoothMouseY, rawY, Time.deltaTime * mouseInertia);
+
+        xRotation -= smoothMouseY;
         xRotation = Mathf.Clamp(xRotation, -85f, 85f);
 
-        // Расчет наклона (Tilt) при нажатии A или D
         float targetTilt = 0f;
         if (inputHandler != null && inputHandler.MoveInput.magnitude > 0.1f)
-        {
-            // Берем ось X (-1 это влево, 1 это вправо)
-            targetTilt = -inputHandler.MoveInput.x * maxTiltAngle; 
-        }
-        
-        // Плавно наклоняем
+            targetTilt = -inputHandler.MoveInput.x * maxTiltAngle;
+
         currentTilt = Mathf.Lerp(currentTilt, targetTilt, Time.deltaTime * tiltSpeed);
 
-        // Применяем поворот мыши (X) и наклон (Z)
-        transform.localRotation = Quaternion.Euler(xRotation, 0f, currentTilt);
-        playerBody.Rotate(Vector3.up * mouseX);
+        transform.localRotation = Quaternion.Euler(xRotation, 0f, currentTilt + bobTiltOffset);
+        playerBody.Rotate(Vector3.up * smoothMouseX);
     }
 
-    // 2: ДИНАМИЧЕСКИЙ FOV ПРИ БЕГЕ
-    private void HandleDynamicFOV()
-    {
-        if (cam == null || playerMovement == null) return;
-
-        bool isSprinting = playerMovement.GetCurrentSpeed() >= playerMovement.GetSprintSpeed() * 0.8f && inputHandler.MoveInput.magnitude > 0.1f;
-        float targetFOV = isSprinting ? sprintFOV : normalFOV;
-
-        cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, targetFOV, Time.deltaTime * fovChangeSpeed);
-    }
-
-    // 1 & 4: HEAD BOB И ЗВУКИ ШАГОВ
     private void HandleHeadBobAndFootsteps()
     {
         if (inputHandler == null || playerMovement == null) return;
@@ -144,67 +137,130 @@ public class MouseMovement : MonoBehaviour
         float currentSpeed = playerMovement.GetCurrentSpeed();
         bool isCrouching = playerMovement.IsCrouching();
         bool playerMoving = inputHandler.MoveInput.magnitude > 0.1f;
+        bool isSprinting = currentSpeed >= playerMovement.GetSprintSpeed() * 0.8f && playerMoving;
 
-        float targetFrequency = idleBobFrequency;
-        float targetIntensity = idleBobIntensity;
+        float targetFrequency;
+        float targetIntensity;
 
-        if (playerMoving)
+        if (!playerMoving)
         {
-            if (isCrouching) { targetFrequency = crouchBobFrequency; targetIntensity = crouchBobIntensity; }
-            else if (currentSpeed >= playerMovement.GetSprintSpeed() * 0.8f) { targetFrequency = sprintBobFrequency; targetIntensity = sprintBobIntensity; }
-            else { targetFrequency = walkBobFrequency; targetIntensity = walkBobIntensity; }
+            float breathMultiplier = 1f + exhaustionLevel * (exhaustionMultiplier - 1f);
+            targetFrequency = idleBobFrequency;
+            targetIntensity = idleBobIntensity * breathMultiplier;
+        }
+        else if (isCrouching)
+        {
+            targetFrequency = crouchBobFrequency;
+            targetIntensity = crouchBobIntensity;
+        }
+        else if (isSprinting)
+        {
+            targetFrequency = sprintBobFrequency;
+            targetIntensity = sprintBobIntensity;
+        }
+        else
+        {
+            targetFrequency = walkBobFrequency;
+            targetIntensity = walkBobIntensity;
         }
 
-        headBobTimer += Time.deltaTime * targetFrequency;
+        currentFrequency = Mathf.Lerp(currentFrequency, targetFrequency, Time.deltaTime * stateTransitionSpeed);
+        currentIntensity = Mathf.Lerp(currentIntensity, targetIntensity, Time.deltaTime * stateTransitionSpeed);
 
-        // Вычисляем синусоиду (от -1 до 1)
+        if (isSprinting)
+            exhaustionLevel = Mathf.Clamp01(exhaustionLevel + Time.deltaTime * 0.5f);
+        else
+            exhaustionLevel = Mathf.Clamp01(exhaustionLevel - Time.deltaTime * exhaustionDecaySpeed);
+
+        headBobTimer += Time.deltaTime * currentFrequency;
         float sinValue = Mathf.Sin(headBobTimer * Mathf.PI * 2f);
+
         Vector3 targetPosition = originalCameraPosition;
+
+        if (isCrouching)
+            targetPosition.y -= 0.8f;
 
         if (playerMoving)
         {
-            float verticalBob = sinValue * targetIntensity;
-            float horizontalBob = Mathf.Cos(headBobTimer * Mathf.PI) * targetIntensity * 0.5f;
+            float verticalBob = sinValue * currentIntensity;
+            float horizontalBob = Mathf.Sin(headBobTimer * Mathf.PI) * currentIntensity * 0.7f;
+
             targetPosition += new Vector3(horizontalBob, verticalBob, 0f);
 
-            // ═══ ЛОГИКА ШАГОВ ═══
-            // Если камера опустилась в самую нижнюю точку (-0.9) и шаг еще не сделан
+            float targetBobTilt = horizontalBob * bobTiltStrength;
+            bobTiltOffset = Mathf.Lerp(bobTiltOffset, targetBobTilt, Time.deltaTime * 10f);
+
             if (sinValue < stepTriggerThreshold && !stepTaken)
             {
                 PlayFootstepSound();
-                stepTaken = true; // Запоминаем, что наступили
+                stepTaken = true;
             }
-            // Если камера пошла наверх (больше 0), сбрасываем триггер шага
             else if (sinValue > 0f)
             {
-                stepTaken = false; 
+                stepTaken = false;
             }
         }
         else
         {
-            // Дыхание
-            targetPosition += new Vector3(0f, sinValue * targetIntensity, 0f);
-            stepTaken = false; // Стоим - не шагаем
+            targetPosition += new Vector3(0f, sinValue * currentIntensity, 0f);
+            bobTiltOffset = Mathf.Lerp(bobTiltOffset, 0f, Time.deltaTime * 6f);
+            stepTaken = false;
         }
 
+        targetPosition.y += springOffset;
         transform.localPosition = Vector3.Lerp(transform.localPosition, targetPosition, Time.deltaTime * 10f);
+    }
+
+    private void HandleLanding()
+    {
+        if (playerMovement == null) return;
+
+        bool isGrounded = playerMovement.GetComponent<CharacterController>()?.isGrounded ?? false;
+
+        if (isGrounded && !wasGrounded)
+        {
+            float fallSpeed = Mathf.Abs(playerMovement.GetComponent<CharacterController>().velocity.y);
+            if (fallSpeed > landImpactSpeedThreshold)
+                springVelocity = -fallSpeed * landImpactStrength;
+        }
+
+        float springForce = -landSpringStiffness * springOffset;
+        float damping = -landSpringDamping * springVelocity;
+        springVelocity += (springForce + damping) * Time.deltaTime;
+        springOffset += springVelocity * Time.deltaTime;
+        springOffset = Mathf.Clamp(springOffset, -0.12f, 0.12f);
+
+        wasGrounded = isGrounded;
+    }
+
+    private void HandleDynamicFOV()
+    {
+        if (cam == null || playerMovement == null) return;
+
+        bool isSprinting = playerMovement.GetCurrentSpeed() >= playerMovement.GetSprintSpeed() * 0.8f
+                           && inputHandler.MoveInput.magnitude > 0.1f;
+
+        float targetFOV = isSprinting ? sprintFOV : normalFOV;
+        cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, targetFOV, Time.deltaTime * fovChangeSpeed);
     }
 
     private void PlayFootstepSound()
     {
-        // Проверяем, есть ли источник звука и сами звуки
-        if (footstepAudioSource != null && footstepSounds != null && footstepSounds.Length > 0)
-        {
-            // Выбираем случайный звук из массива (чтобы не звучало как пулемет)
-            int randomIndex = Random.Range(0, footstepSounds.Length);
-            
-            // Немного меняем высоту звука (Pitch) для реализма (от 0.9 до 1.1)
-            footstepAudioSource.pitch = Random.Range(0.9f, 1.1f);
-            
-            // Если бежим - звук чуть громче, если крадемся - тише
-            float volume = playerMovement.IsCrouching() ? 0.3f : (playerMovement.GetCurrentSpeed() >= playerMovement.GetSprintSpeed() * 0.8f ? 1f : 0.6f);
-            
-            footstepAudioSource.PlayOneShot(footstepSounds[randomIndex], volume);
-        }
+        if (footstepAudioSource == null || footstepSounds == null || footstepSounds.Length == 0)
+            return;
+
+        int randomIndex = Random.Range(0, footstepSounds.Length);
+        footstepAudioSource.pitch = Random.Range(0.9f, 1.1f);
+
+        float volume = playerMovement.IsCrouching() ? 0.3f
+                     : playerMovement.GetCurrentSpeed() >= playerMovement.GetSprintSpeed() * 0.8f ? 1f
+                     : 0.6f;
+
+        footstepAudioSource.PlayOneShot(footstepSounds[randomIndex], volume);
+    }
+
+    public void SetXRotation(float angle)
+    {
+        xRotation = angle;
     }
 }

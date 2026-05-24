@@ -8,18 +8,24 @@ public class IntroController : MonoBehaviour
 {
     public static bool introPlaying = false;
 
-    [Header("Записка")]
+    [Header("Note")]
     [SerializeField] private GameObject notePanel;
     [SerializeField] private GameObject hintPanel;
     [SerializeField] private TextMeshProUGUI hintText;
 
-    [Header("Ссылки")]
+    [Header("References")]
     [SerializeField] private PlayerMovement playerMovement;
-    [SerializeField] private Mous1111 cameraController;
+    [SerializeField] private MouseMovement cameraController;
     [SerializeField] private PlayableDirector director;
 
     [Header("HUD")]
     [SerializeField] private GameObject hudRoot;
+
+    [Header("Intro Elements")]
+    [SerializeField] private GameObject blurOverlay;
+    [SerializeField] private GameObject eyelidTop;
+    [SerializeField] private GameObject eyelidBottom;
+    [SerializeField] private GameObject introImage;
 
     private bool waitingForNoteRead = false;
     private bool noteIsOpen = false;
@@ -27,7 +33,6 @@ public class IntroController : MonoBehaviour
 
     private void Start()
     {
-        // Якщо інтро вже було — одразу пропускаємо
         if (SaveSystem.instance != null && SaveSystem.instance.SaveExists())
         {
             SkipIntro();
@@ -37,6 +42,9 @@ public class IntroController : MonoBehaviour
         introPlaying = true;
         if (playerMovement != null) playerMovement.enabled = false;
         if (cameraController != null) cameraController.enabled = false;
+
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = false;
 
         if (notePanel != null) notePanel.SetActive(false);
         if (hintPanel != null) hintPanel.SetActive(false);
@@ -57,13 +65,12 @@ public class IntroController : MonoBehaviour
         }
     }
 
-    // ========== Вызывается через Signal с Timeline ==========
     public void ShowNoteHint()
     {
         if (hintPanel != null)
         {
             hintPanel.SetActive(true);
-            hintText.text = "[E] — Прочитать записку";
+            hintText.text = "[Space] — Прочитати записку";
         }
         if (director != null) director.Pause();
         waitingForNoteRead = true;
@@ -73,28 +80,67 @@ public class IntroController : MonoBehaviour
     {
         introPlaying = false;
         introFinished = true;
+
         if (director != null) director.Stop();
-        if (playerMovement != null) playerMovement.enabled = true;
+
+        // Ховаємо всі елементи інтро
+        if (blurOverlay != null) blurOverlay.SetActive(false);
+        if (eyelidTop != null) eyelidTop.SetActive(false);
+        if (eyelidBottom != null) eyelidBottom.SetActive(false);
+        if (introImage != null) introImage.SetActive(false);
+        if (notePanel != null) notePanel.SetActive(false);
+        if (hintPanel != null) hintPanel.SetActive(false);
+
+        if (playerMovement != null)
+        {
+            playerMovement.ResetSpeed();
+            playerMovement.enabled = true;
+        }
+
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+
         if (cameraController != null) cameraController.enabled = true;
         if (hudRoot != null) hudRoot.SetActive(true);
+
+        if (SleepSystem.instance != null && SleepSystem.instance.fadeScreen != null)
+        {
+            SleepSystem.instance.fadeScreen.alpha = 0f;
+            SleepSystem.instance.fadeScreen.gameObject.SetActive(false);
+        }
+
+        PlayerAnimator playerAnimator = FindFirstObjectByType<PlayerAnimator>();
+        if (playerAnimator != null) playerAnimator.StandUp();
     }
 
     public void FinishIntro()
     {
         introPlaying = false;
         introFinished = true;
-        if (playerMovement != null) playerMovement.enabled = true;
+
+        if (playerMovement != null)
+        {
+            playerMovement.ResetSpeed();
+            playerMovement.enabled = true;
+        }
+
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+
         if (cameraController != null) cameraController.enabled = true;
         if (hudRoot != null) hudRoot.SetActive(true);
+
         QuestManager.instance?.ActivateQuest("quest_look_around");
+
+        PlayerAnimator playerAnimator = FindFirstObjectByType<PlayerAnimator>();
+        if (playerAnimator != null) playerAnimator.StandUp();
     }
 
-    // ========== Записка ==========
     private void OpenNote()
     {
         noteIsOpen = true;
         if (notePanel != null) notePanel.SetActive(true);
-        if (hintText != null) hintText.text = "[E] — Закрыть";
+        if (hintText != null) hintText.text = "[Space] — Закрити";
     }
 
     private void CloseNote()

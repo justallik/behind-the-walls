@@ -5,52 +5,31 @@ public class EquipmentManager : MonoBehaviour
 {
     public static EquipmentManager instance;
 
-    [Header("Оружие в руке")]
-    public Transform weaponHolder; 
+    [Header("Weapon Holder")]
+    public Transform weaponHolder;
 
     public ItemData currentEquippedItem = null;
     public bool isEquipped = false;
+
+    private PlayerHealth cachedPlayerHealth;
 
     private void Awake()
     {
         if (instance == null) instance = this;
     }
 
-    void Update()
+    private void Start()
+    {
+        cachedPlayerHealth = FindFirstObjectByType<PlayerHealth>();
+    }
+
+    private void Update()
     {
         bool isPendingSlotSelection = HotbarManager.instance != null && HotbarManager.instance.IsPendingSlotSelection();
-        
-        // Блокируем, если инвентарь открыт
-        if (Cursor.lockState == CursorLockMode.None && !isPendingSlotSelection) 
+
+        if (Cursor.lockState == CursorLockMode.None && !isPendingSlotSelection)
             return;
 
-        // 🎯 КЛАВИША F — УНИВЕРСАЛЬНАЯ
-        if (Keyboard.current != null && Keyboard.current.fKey.wasPressedThisFrame)
-        {
-            // 1. Если в руках оружие, которого НЕТ в хотбаре — убираем его на F
-            if (isEquipped && currentEquippedItem != null && !IsItemInHotbar(currentEquippedItem))
-            {
-                isEquipped = false;
-                Debug.Log($"❌ Спрятали оружие (из инвентаря): {currentEquippedItem.itemName}");
-                UpdateWeaponVisibility();
-                return; 
-            }
-
-            // 2. Иначе — используем активную хилку/патроны из хотбара
-            if (!isPendingSlotSelection && HotbarManager.instance != null)
-            {
-                int activeIndex = HotbarManager.instance.GetCurrentSlotIndex();
-                ItemData activeItem = HotbarManager.instance.boundItems[activeIndex];
-
-                // На F используем ТОЛЬКО расходники
-                if (activeItem != null && activeItem.itemType != ItemData.ItemType.Weapon)
-                {
-                    TryUseItem(activeIndex);
-                }
-            }
-        }
-
-        // КЛАВИШИ 1, 2, 3, 4
         if (Keyboard.current != null)
         {
             if (Keyboard.current.digit1Key.wasPressedThisFrame) HandleSlotKey(0);
@@ -59,40 +38,64 @@ public class EquipmentManager : MonoBehaviour
             if (Keyboard.current.digit4Key.wasPressedThisFrame) HandleSlotKey(3);
         }
 
-        // СКРОЛЛ МЫШКОЙ (Умный)
         if (!isPendingSlotSelection && Mouse.current != null)
         {
             float scrollDelta = Mouse.current.scroll.ReadValue().y;
-            if (scrollDelta > 0) { HotbarManager.instance.NextSlot(); HandleScrollAction(HotbarManager.instance.GetCurrentSlotIndex()); }
-            else if (scrollDelta < 0) { HotbarManager.instance.PreviousSlot(); HandleScrollAction(HotbarManager.instance.GetCurrentSlotIndex()); }
+            if (scrollDelta > 0)
+            {
+                HotbarManager.instance.NextSlot();
+                HandleScrollAction(HotbarManager.instance.GetCurrentSlotIndex());
+            }
+            else if (scrollDelta < 0)
+            {
+                HotbarManager.instance.PreviousSlot();
+                HandleScrollAction(HotbarManager.instance.GetCurrentSlotIndex());
+            }
+        }
+
+        // F — використати хілку або прибрати зброю
+        if (Keyboard.current != null && Keyboard.current.fKey.wasPressedThisFrame)
+        {
+            if (isEquipped && currentEquippedItem != null && !IsItemInHotbar(currentEquippedItem))
+            {
+                isEquipped = false;
+                UpdateWeaponVisibility();
+                return;
+            }
+
+            if (!isPendingSlotSelection && HotbarManager.instance != null)
+            {
+                int activeIndex = HotbarManager.instance.GetCurrentSlotIndex();
+                ItemData activeItem = HotbarManager.instance.boundItems[activeIndex];
+
+                if (activeItem != null && activeItem.itemType != ItemData.ItemType.Weapon)
+                    TryUseItem(activeIndex);
+            }
         }
     }
 
-    // Проверка: есть ли этот предмет в хотбаре?
     private bool IsItemInHotbar(ItemData item)
     {
         if (HotbarManager.instance == null) return false;
         for (int i = 0; i < 4; i++)
         {
-            if (HotbarManager.instance.boundItems[i] != null && 
+            if (HotbarManager.instance.boundItems[i] != null &&
                 HotbarManager.instance.boundItems[i].itemName == item.itemName)
                 return true;
         }
         return false;
     }
 
-    void HandleScrollAction(int slotIndex)
+    private void HandleScrollAction(int slotIndex)
     {
         ItemData item = HotbarManager.instance.boundItems[slotIndex];
 
-        // Если скроллим на оружие — достаем его
         if (item != null && item.itemType == ItemData.ItemType.Weapon)
         {
             currentEquippedItem = item;
             isEquipped = true;
             UpdateWeaponVisibility();
         }
-        // Если скроллим на ПУСТО или на ХИЛКУ — прячем оружие (свободные руки)
         else
         {
             isEquipped = false;
@@ -100,75 +103,58 @@ public class EquipmentManager : MonoBehaviour
         }
     }
 
-    void HandleSlotKey(int slotIndex)
+    private void HandleSlotKey(int slotIndex)
     {
-        // 1. Проверяем, не в режиме ли мы назначения слота
         if (HotbarManager.instance.IsPendingSlotSelection())
         {
             HotbarManager.instance.ConfirmSlotSelection(slotIndex);
-            return; // Выходим
+            return;
         }
 
-        // 2. СИНХРОНИЗАЦИЯ: Передвигаем визуальную рамку подсветки на этот слот
         HotbarManager.instance.SetCurrentSlot(slotIndex);
 
         ItemData item = HotbarManager.instance.boundItems[slotIndex];
 
-        // 3. ОСВОБОЖДАЕМ РУКИ (Логика анимаций)
         if (item == null)
         {
-            // Если нажали цифру пустого слота — просто убираем оружие
             isEquipped = false;
             UpdateWeaponVisibility();
             return;
         }
         else if (item.itemType == ItemData.ItemType.HealthItem)
         {
-            // Если нажали цифру с хилкой — ПРЯЧЕМ оружие, чтобы руки были свободны для анимации лечения
             isEquipped = false;
             UpdateWeaponVisibility();
         }
 
-        // 4. Финальное использование предмета (вызов старой функции)
         TryUseItem(slotIndex);
     }
 
-    void TryUseItem(int slotIndex)
+    private void TryUseItem(int slotIndex)
     {
         ItemData item = HotbarManager.instance.boundItems[slotIndex];
         if (item == null) return;
 
         if (item.itemType == ItemData.ItemType.HealthItem)
         {
-            // HealthItem: лечимся и удаляем из инвентаря
-            if (InventorySystemNew.instance.GetItemCount(item.itemName) > 0)
+            if (InventorySystem.instance.GetItemCount(item.itemName) > 0)
             {
-                PlayerHealth playerHealth = FindFirstObjectByType<PlayerHealth>();
-                if (playerHealth != null)
-                {
-                    playerHealth.Heal(item.healAmount);
-                    Debug.Log($"💊 Используем {item.itemName}: +{item.healAmount} HP");
-                }
-                
-                InventorySystemNew.instance.RemoveItem(item.itemName, 1);
-                Debug.Log($"✅ {item.itemName} удален из инвентаря");
+                if (cachedPlayerHealth != null)
+                    cachedPlayerHealth.Heal(item.healAmount);
+
+                InventorySystem.instance.RemoveItem(item.itemName, 1);
             }
         }
         else if (item.itemType == ItemData.ItemType.Weapon)
         {
-            // Оружие через хотбар (1-4) просто переключается
             if (currentEquippedItem == item) isEquipped = !isEquipped;
             else { currentEquippedItem = item; isEquipped = true; }
             UpdateWeaponVisibility();
         }
         else
         {
-            // Прочие предметы (Ammunition, Note и т.д.)
-            Debug.Log($"➕ Используем: {item.itemName}");
-            if (InventorySystemNew.instance.GetItemCount(item.itemName) > 0)
-            {
-                InventorySystemNew.instance.RemoveItem(item.itemName, 1);
-            }
+            if (InventorySystem.instance.GetItemCount(item.itemName) > 0)
+                InventorySystem.instance.RemoveItem(item.itemName, 1);
         }
     }
 
@@ -181,36 +167,25 @@ public class EquipmentManager : MonoBehaviour
             currentEquippedItem = item;
             isEquipped = true;
             UpdateWeaponVisibility();
-            // ЗАКРЫВАЕМ НОВЫЙ ИНВЕНТАРЬ
-            if (InventoryUINew.instance != null) InventoryUINew.instance.CloseInventory();
+            if (InventoryUI.instance != null) InventoryUI.instance.CloseInventory();
         }
         else
         {
-            InventorySystemNew.instance.RemoveItem(item.itemName, 1);
+            InventorySystem.instance.RemoveItem(item.itemName, 1);
         }
     }
 
-    public void UpdateWeaponVisibility() 
-    { 
+    public void UpdateWeaponVisibility()
+    {
         if (weaponHolder == null) return;
 
-        // Включаем или выключаем саму "папку" с руками
-        weaponHolder.gameObject.SetActive(isEquipped); 
+        weaponHolder.gameObject.SetActive(isEquipped);
 
-        // Если мы достаем оружие, нужно включить правильную модельку и спрятать остальные
         if (isEquipped && currentEquippedItem != null)
         {
             foreach (Transform weapon in weaponHolder)
             {
-                // Сравниваем имя объекта в иерархии с именем в ItemData
-                if (weapon.name == currentEquippedItem.itemName)
-                {
-                    weapon.gameObject.SetActive(true); // Включаем нужную пушку
-                }
-                else
-                {
-                    weapon.gameObject.SetActive(false); // Прячем остальные
-                }
+                weapon.gameObject.SetActive(weapon.name == currentEquippedItem.itemName);
             }
         }
     }
@@ -236,5 +211,3 @@ public class EquipmentManager : MonoBehaviour
         return null;
     }
 }
-
-

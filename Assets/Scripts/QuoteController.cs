@@ -3,6 +3,7 @@ using UnityEngine.SceneManagement;
 
 public class QuoteController : MonoBehaviour
 {
+    [Header("Scene Settings")]
     [SerializeField] private string nextSceneName = "SampleScene";
 
     public void HideQuoteAndNext()

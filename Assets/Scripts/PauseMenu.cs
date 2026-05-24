@@ -6,13 +6,16 @@ public class PauseMenu : MonoBehaviour
 {
     public static PauseMenu instance;
 
-    [Header("Панель")]
+    [Header("Panel")]
     [SerializeField] private GameObject pauseMenuPanel;
 
-    [Header("Кнопки")]
+    [Header("Buttons")]
     [SerializeField] private Button btnContinue;
     [SerializeField] private Button btnSave;
     [SerializeField] private Button btnQuit;
+
+    [Header("Scene Names")]
+    [SerializeField] private string mainMenuScene = "MainMenu";
 
     private bool isPaused = false;
 
@@ -34,20 +37,16 @@ public class PauseMenu : MonoBehaviour
             btnSave.onClick.AddListener(SaveGame);
 
         if (btnQuit != null)
-            btnQuit.onClick.AddListener(QuitGame);
+            btnQuit.onClick.AddListener(QuitToMainMenu);
     }
 
     private void Update()
     {
-        // ESC открывает/закрывает меню паузы
-        // Но только если инвентарь закрыт
         if (UnityEngine.InputSystem.Keyboard.current.escapeKey.wasPressedThisFrame)
         {
-            Debug.Log("ESC нажат! isPaused = " + isPaused);
-            
-            if (InventoryUINew.instance != null && InventoryUINew.instance.IsOpen())
+            if (InventoryUI.instance != null && InventoryUI.instance.IsOpen())
             {
-                InventoryUINew.instance.CloseInventory();
+                InventoryUI.instance.CloseInventory();
                 return;
             }
 
@@ -60,7 +59,6 @@ public class PauseMenu : MonoBehaviour
     {
         isPaused = true;
         if (pauseMenuPanel != null) pauseMenuPanel.SetActive(true);
-        // Time.timeScale = 0f;  // временно убрали
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
     }
@@ -77,25 +75,15 @@ public class PauseMenu : MonoBehaviour
     public void SaveGame()
     {
         if (SaveSystem.instance != null)
-        {
             SaveSystem.instance.Save();
-            Debug.Log("✅ Игра сохранена!");
-        }
         else
-        {
-            Debug.LogError("❌ SaveSystem не найден!");
-        }
+            Debug.LogError("SaveSystem не знайдено");
     }
 
-    public void QuitGame()
+    public void QuitToMainMenu()
     {
         Time.timeScale = 1f;
-        Debug.Log("👋 Выход из игры...");
-        Application.Quit();
-
-#if UNITY_EDITOR
-        UnityEditor.EditorApplication.isPlaying = false;
-#endif
+        SceneManager.LoadScene(mainMenuScene);
     }
 
     public bool IsPaused() => isPaused;

@@ -4,7 +4,9 @@ using UnityEngine;
 public class SleepSystem : MonoBehaviour
 {
     public static SleepSystem instance;
-    public CanvasGroup fadeScreen; // Твоя черная шторка
+
+    [Header("UI")]
+    public CanvasGroup fadeScreen;
     public float fadeDuration = 2f;
 
     private void Awake() => instance = this;
@@ -14,86 +16,82 @@ public class SleepSystem : MonoBehaviour
         StartCoroutine(SleepRoutine());
     }
 
-    private System.Collections.IEnumerator SleepRoutine()
+    private IEnumerator SleepRoutine()
     {
-        // 1. Включаем черную панель и затемняем экран
         if (fadeScreen == null)
         {
-            Debug.LogError("❌ SleepSystem: fadeScreen не назначена в Инспекторе!");
+            Debug.LogError("❌ SleepSystem: fadeScreen не призначена в Інспекторі!");
             yield break;
         }
-        
-        fadeScreen.gameObject.SetActive(true);
-        yield return StartCoroutine(Fade(0, 1));
 
-        // ✅ КВЕСТ: Выжить ночь - завершено!
+        // 1. Затемнюємо екран
+        fadeScreen.gameObject.SetActive(true);
+        yield return StartCoroutine(Fade(0f, 1f));
+
+        // ✅ КВЕСТ: Вижити ніч
         QuestManager.instance?.CompleteQuest("quest_survive_night");
 
-        // --- ЛОГИКА СНА С ТЕНКОКУ ---
-        // Ищем Тенкоку на сцене
+        // --- ТЕНКОКУ ---
         Tenkoku.Core.TenkokuModule tenkoku = FindFirstObjectByType<Tenkoku.Core.TenkokuModule>();
-        
         if (tenkoku != null)
         {
-            Debug.Log("🛌 Tenkoku найден! Текущее время: " + tenkoku.currentHour + ":" + tenkoku.currentMinute);
-            
             float startTime = tenkoku.currentHour;
-            float wakeUpTime = 8f; // Просыпаемся в 8 утра
-            float hoursSlept = 0f;
+            float wakeUpTime = 8f;
+            float hoursSlept = startTime >= 22f
+                ? (24f - startTime) + wakeUpTime
+                : wakeUpTime - startTime;
 
-            // Считаем, сколько часов Ноа проспал
-            if (startTime >= 22f) 
-                hoursSlept = (24f - startTime) + wakeUpTime;
-            else 
-                hoursSlept = wakeUpTime - startTime;
+            float sleepEfficiency = Mathf.Clamp01(hoursSlept / 10f);
 
-            Debug.Log($"😴 Проспали {hoursSlept} часов (эффективность сна)");
-
-            // Считаем эффективность сна для лечения (максимум 10 часов)
-            float maxSleepCycle = 10f;
-            float sleepEfficiency = Mathf.Clamp01(hoursSlept / maxSleepCycle);
-
-            // Лечим Ноа
             if (PlayerHealth.instance != null)
             {
-                float missingHealth = PlayerHealth.instance.maxHealth - PlayerHealth.instance.currentHealth;
-                float healthToRestore = missingHealth * sleepEfficiency;
-                PlayerHealth.instance.Heal(healthToRestore);
-                Debug.Log($"💚 Восстановлено {healthToRestore} HP");
-            }
-            else
-            {
-                Debug.LogWarning("⚠️ PlayerHealth.instance не найден!");
+                float missing  = PlayerHealth.instance.maxHealth - PlayerHealth.instance.currentHealth;
+                float restored = missing * sleepEfficiency;
+                PlayerHealth.instance.Heal(restored);
+                Debug.Log($"💚 Відновлено {restored} HP");
             }
 
-            // ПЕРЕМОТКА ВРЕМЕНИ НА УТРО В ТЕНКОКУ
-            tenkoku.currentHour = 8;
+            tenkoku.currentHour   = 8;
             tenkoku.currentMinute = 0;
-            Debug.Log("⏰ Время установлено на 08:00");
+            Debug.Log("⏰ Час встановлено 08:00");
         }
         else
         {
-            Debug.LogError("❌ Tenkoku не найден на сцене! Система сна не работает!");
+            Debug.LogWarning("⚠️ Tenkoku не знайдено");
         }
 
-        yield return new WaitForSeconds(1.5f); // Пауза в темноте для эффекта
+        // 2. Пауза в темряві — камера непомітно повертається вгору
+        yield return new WaitForSeconds(1.5f);
 
-        // 2. Осветляем экран и выключаем панель
-        yield return StartCoroutine(Fade(1, 0));
-        fadeScreen.gameObject.SetActive(false);
+        // 3. Запускаємо фінальну сцену (екран ще чорний)
+        if (EndingController.instance != null)
+        {
+            EndingController.instance.StartEnding();
+        }
+        else
+        {
+            Debug.LogError("❌ EndingController не знайдено на сцені!");
+        }
+    }
 
-        // ✅ КВЕСТ: Найти тайник - активирован!
-        QuestManager.instance?.ActivateQuest("quest_find_stash");
+    public void HideFade()
+    {
+        if (fadeScreen != null)
+        {
+            fadeScreen.alpha = 0f;
+            fadeScreen.gameObject.SetActive(false);
+        }
     }
 
     private IEnumerator Fade(float start, float end)
     {
-        float timer = 0;
+        float timer = 0f;
         while (timer < fadeDuration)
         {
             timer += Time.deltaTime;
             fadeScreen.alpha = Mathf.Lerp(start, end, timer / fadeDuration);
             yield return null;
         }
+        fadeScreen.alpha = end;
     }
 }

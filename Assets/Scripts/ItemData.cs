@@ -1,46 +1,33 @@
 using UnityEngine;
 
-/// <summary>
-/// Описание типа предмета (шаблон)
-/// </summary>
 [CreateAssetMenu(menuName = "Items/ItemData", fileName = "New Item")]
 public class ItemData : ScriptableObject
 {
     public string itemName = "Предмет";
+
     public enum ItemType { Weapon, Note, HealthItem, Ammunition, Diary, Backpack }
     public ItemType itemType;
 
-    // --- ПОЛЕ ДНЕВНИКА ---
-    [Header("Настройки Дневника")]
-    [Tooltip("ID записи от 1 до 9. Используется для идентификации записи")]
+    [Header("Diary Settings")]
+    [Tooltip("ID запису від 1 до 14")]
     public int diaryEntryID;
-    // ------------------
-    
-    // Для оружия - типы слотов
-    // General   -> Автоматически заполняет первый пустой слот (0 или 1)
-    // Pistol    -> Слот 0 (2x Medium)
-    // Knife     -> Слот 1 (2x Medium)  
-    // Shotgun   -> Слот 2 (3x Big)
+
     public enum WeaponSlotType { General, Pistol, Knife, Shotgun }
-    
-    [Header("Настройки оружия")]
+
+    [Header("Weapon Settings")]
     public WeaponSlotType weaponSlotType = WeaponSlotType.General;
-    
-    [Header("Боевые характеристики (только для оружия)")]
-    public float weaponDamage = 25f;      // Урон
-    public float attackStaminaCost = 15f; // Затраты стамины на удар
-    public float blockStaminaCost = 5f;   // Затраты стамины в секунду на удержание блока
-    public float blockReduction = 0.7f;   // Процент блокируемого урона (0.7 = 70%)
-    
-    public int maxStackSize = 1; // Максимум в одном слоте (траву х8, бинты х4, патроны х3 и т.д.)
-    public int healAmount = 0;   // Сколько здоровья восстанавливает (только для HealthItem)
-    public Sprite itemIcon;      // Иконка для основного инвентаря
-    public Sprite hotbarIcon;    // Иконка для хотбара-крестовины (если null - используется itemIcon)
+    public float weaponDamage = 25f;
+    public float attackStaminaCost = 15f;
+    public float blockStaminaCost = 5f;
+    public float blockReduction = 0.7f;
+
+    [Header("Item Settings")]
+    public int maxStackSize = 1;
+    public int healAmount = 0;
+    public Sprite itemIcon;
+    public Sprite hotbarIcon;
 }
 
-/// <summary>
-/// Один слот в инвентаре (предмет + количество)
-/// </summary>
 [System.Serializable]
 public class InventorySlot
 {

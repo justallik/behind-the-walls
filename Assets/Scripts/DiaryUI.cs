@@ -7,13 +7,16 @@ public class DiaryUI : MonoBehaviour
 {
     public static DiaryUI instance;
 
-    [Header("📄 UI Страницы (10 штук)")]
-    [SerializeField] private GameObject[] pageUIs = new GameObject[10]; // Page_1 до Page_10
+    [Header("Page UIs")]
+    [SerializeField] private GameObject[] pageUIs = new GameObject[10];
 
-    [Header("📌 Маркеры (кнопки)")]
-    [SerializeField] private GameObject[] allMarkerButtons = new GameObject[10]; // Marker_1 до Marker_10
+    [Header("Marker Buttons")]
+    [SerializeField] private GameObject[] allMarkerButtons = new GameObject[10];
 
-    private int currentDisplayIndex = 0; // Индекс в отсортированном списке записей
+    [Header("Note Slots")]
+    [SerializeField] private GameObject[] noteSlots = new GameObject[4];
+
+    private int currentDisplayIndex = 0;
 
     private void Awake()
     {
@@ -25,7 +28,6 @@ public class DiaryUI : MonoBehaviour
 
     private void Start()
     {
-        // Скрываем все страницы
         for (int i = 0; i < pageUIs.Length; i++)
         {
             if (pageUIs[i] != null)
@@ -33,24 +35,18 @@ public class DiaryUI : MonoBehaviour
         }
 
         if (DiaryManager.instance != null)
-        {
             RefreshDiaryDisplay();
-        }
         else
-        {
-            Debug.LogWarning("⚠️ DiaryManager не найден при инициализации DiaryUI!");
-        }
+            Debug.LogError("DiaryManager не знайдено");
     }
 
     private void Update()
     {
         if (Keyboard.current == null) return;
-        
-        if (DiaryManager.instance == null) return; // ✅ Добавил проверку
+        if (DiaryManager.instance == null) return;
 
         int totalEntries = DiaryManager.instance.GetTotalEntries();
 
-        // Клавиши 1-9 для переключения между доступными записями
         if (Keyboard.current.digit1Key.wasPressedThisFrame && totalEntries > 0) ShowEntry(0);
         if (Keyboard.current.digit2Key.wasPressedThisFrame && totalEntries > 1) ShowEntry(1);
         if (Keyboard.current.digit3Key.wasPressedThisFrame && totalEntries > 2) ShowEntry(2);
@@ -61,26 +57,16 @@ public class DiaryUI : MonoBehaviour
         if (Keyboard.current.digit8Key.wasPressedThisFrame && totalEntries > 7) ShowEntry(7);
         if (Keyboard.current.digit9Key.wasPressedThisFrame && totalEntries > 8) ShowEntry(8);
 
-        // 🎯 НОВОЕ: Закрытие дневника по Q или ESC
         if (Keyboard.current.qKey.wasPressedThisFrame || Keyboard.current.escapeKey.wasPressedThisFrame)
         {
-            if (InventoryUINew.instance != null)
-            {
-                InventoryUINew.instance.ShowInventoryTab();
-            }
+            if (InventoryUI.instance != null)
+                InventoryUI.instance.ShowInventoryTab();
         }
     }
 
-    /// <summary>
-    /// Показать запись по индексу в отсортированном списке
-    /// </summary>
     public void ShowEntry(int displayIndex)
     {
-        if (DiaryManager.instance == null) 
-        {
-            Debug.LogWarning("⚠️ DiaryManager не найден!");
-            return;
-        }
+        if (DiaryManager.instance == null) return;
 
         var sortedEntries = DiaryManager.instance.GetSortedEntries();
         if (displayIndex < 0 || displayIndex >= sortedEntries.Count) return;
@@ -88,29 +74,22 @@ public class DiaryUI : MonoBehaviour
         DiaryEntry entry = sortedEntries[displayIndex];
         currentDisplayIndex = displayIndex;
 
-        // 1. Скрываем АБСОЛЮТНО ВСЕ страницы перед показом нужной
         for (int i = 0; i < pageUIs.Length; i++)
         {
             if (pageUIs[i] != null)
                 pageUIs[i].SetActive(false);
         }
 
-        // 2. Вычисляем индекс страницы на основе ID записи
-        int pageIndex = entry.id - 1;
+        int pageIndex = entry.id <= 10 ? entry.id - 1 : 9;
 
-        // Проверяем, что такой индекс есть в нашем массиве страниц
         if (pageIndex >= 0 && pageIndex < pageUIs.Length)
         {
             if (pageUIs[pageIndex] != null)
             {
                 pageUIs[pageIndex].SetActive(true);
-                
-                // Обновляем текст (заголовок, дату и т.д.) если нужно
                 UpdatePageContent(entry, pageIndex);
-                
-                entry.isNew = false; // Помечаем как прочитанную
-                
-                // 🔔 Обновляем только текст маркера для этой записи
+                entry.isNew = false;
+
                 if (displayIndex >= 0 && displayIndex < allMarkerButtons.Length)
                 {
                     GameObject marker = allMarkerButtons[displayIndex];
@@ -119,23 +98,34 @@ public class DiaryUI : MonoBehaviour
                         TextMeshProUGUI markerText = marker.GetComponentInChildren<TextMeshProUGUI>();
                         if (markerText != null)
                         {
-                            // Меняем "NEW" обратно на ID
                             markerText.text = entry.id.ToString();
-                            markerText.color = Color.white; // Возвращаем белый цвет
+                            markerText.color = Color.white;
                         }
                     }
                 }
+
+                if (pageIndex == 9)
+                    RefreshNoteSlots();
             }
             else
             {
-                Debug.LogWarning($"⚠️ Ячейка страницы под индексом {pageIndex} пуста в Инспекторе!");
+                Debug.LogWarning($"Сторінка під індексом {pageIndex} порожня в інспекторі");
             }
         }
     }
 
-    /// <summary>
-    /// Обновить содержимое страницы
-    /// </summary>
+    private void RefreshNoteSlots()
+    {
+        for (int i = 0; i < noteSlots.Length; i++)
+        {
+            if (noteSlots[i] == null) continue;
+            int noteId = 11 + i;
+            bool hasEntry = DiaryManager.instance.GetSortedEntries()
+                .Exists(e => e.id == noteId);
+            noteSlots[i].SetActive(hasEntry);
+        }
+    }
+
     private void UpdatePageContent(DiaryEntry entry, int pageIndex)
     {
         if (DiaryManager.instance == null) return;
@@ -151,78 +141,51 @@ public class DiaryUI : MonoBehaviour
         if (titleText != null) titleText.text = $"# {entry.id} - {entry.title}";
         if (contentText != null) contentText.text = entry.content;
         if (dateText != null) dateText.text = entry.date;
-        
+
         int total = DiaryManager.instance.GetTotalEntries();
         if (counterText != null) counterText.text = $"{currentDisplayIndex + 1} of {total}";
 
-        // Убираем "NEW" маркер
         entry.isNew = false;
     }
 
-    /// <summary>
-    /// Обновить видимость маркеров - показываем только столько сколько записей
-    /// </summary>
     public void RefreshDiaryDisplay()
     {
-        if (DiaryManager.instance == null) 
-        {
-            Debug.LogWarning("⚠️ DiaryManager не найден!");
-            return;
-        }
+        if (DiaryManager.instance == null) return;
 
-        // 1. Получаем список всех найденных записей, отсортированный по ID (1, 4, 7...)
         var sortedEntries = DiaryManager.instance.GetSortedEntries();
 
-        // 2. Сначала скрываем ВСЕ маркеры
         for (int i = 0; i < allMarkerButtons.Length; i++)
         {
             if (allMarkerButtons[i] != null)
                 allMarkerButtons[i].SetActive(false);
         }
 
-        // 3. Проходимся по списку НАЙДЕННЫХ записей и включаем маркеры по порядку
         for (int i = 0; i < sortedEntries.Count; i++)
         {
-            // Если записей больше, чем у нас есть кнопок-маркеров, выходим из цикла
             if (i >= allMarkerButtons.Length) break;
 
             DiaryEntry entry = sortedEntries[i];
             GameObject marker = allMarkerButtons[i];
 
-            marker.SetActive(true); // Включаем кнопку (Layout Group сам подвинет её на i-тое место)
+            marker.SetActive(true);
 
-            // Устанавливаем текст на маркере: "NEW" если запись новая, иначе ID записи
             TextMeshProUGUI markerText = marker.GetComponentInChildren<TextMeshProUGUI>();
             if (markerText != null)
             {
-                // Если запись новая - показываем "NEW", иначе - ID
                 markerText.text = entry.isNew ? "NEW" : entry.id.ToString();
-                
-                // Опционально: можно менять цвет для новых записей
-                if (entry.isNew)
-                {
-                    markerText.color = new Color(1f, 0.5f, 0f); // Оранжевый цвет для NEW
-                }
-                else
-                {
-                    markerText.color = Color.white; // Белый для обычных
-                }
+                markerText.color = entry.isNew ? new Color(1f, 0.5f, 0f) : Color.white;
             }
 
-            // Настраиваем нажатие
             Button btn = marker.GetComponent<Button>();
             if (btn != null)
             {
                 btn.onClick.RemoveAllListeners();
-                int indexToShow = i; // Сохраняем индекс для вызова
+                int indexToShow = i;
                 btn.onClick.AddListener(() => ShowEntry(indexToShow));
             }
         }
 
-        // 4. Показываем первую доступную запись по умолчанию, если они есть
         if (sortedEntries.Count > 0)
-        {
             ShowEntry(0);
-        }
     }
 }

@@ -3,7 +3,7 @@ using UnityEngine.EventSystems;
 
 public class ButtonHoverIcon : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 {
-    [SerializeField] private GameObject hoverIcon; // перетащи HoverIcon сюда
+    [SerializeField] private GameObject hoverIcon;
 
     public void OnPointerEnter(PointerEventData eventData)
     {

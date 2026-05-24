@@ -1,28 +1,26 @@
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro;
 
 public class HealthUI : MonoBehaviour
 {
-    [Header("Компоненты UI")]
-    [SerializeField] private Image healthBar;              
-    [SerializeField] private TextMeshProUGUI healthText;   
+    [Header("Health Bar")]
+    [SerializeField] private Image healthBar;
 
-    [Header("Жизни")]
-    [SerializeField] private Image[] lifeIcons;       // ⚪ Белые жизни (видны при жизни)
-    [SerializeField] private Image[] redLifeIcons;    // 🔴 Красные жизни (видны при смерти)
+    [Header("Lives")]
+    [SerializeField] private Image[] lifeIcons;
+    [SerializeField] private Image[] redLifeIcons;
 
-    [Header("Эффект 1: Красная Рамка (при 40%)")]
-    [SerializeField] private GameObject redBorderObject;    // Сюда твою рамку
+    [Header("Red Border")]
+    [SerializeField] private GameObject redBorderObject;
     [SerializeField] private float borderThreshold = 40f;
-    [SerializeField] private float borderPulseSpeed = 3f;   // Скорость биения сердца
-    [SerializeField] private float borderMaxAlpha = 0.6f;   // Насколько яркой она становится
+    [SerializeField] private float borderPulseSpeed = 3f;
+    [SerializeField] private float borderMaxAlpha = 0.6f;
 
-    [Header("Эффект 2: Темный Шум (при 20%)")]
-    [SerializeField] private GameObject noiseObject;        // Сюда твой шум
+    [Header("Noise Effect")]
+    [SerializeField] private GameObject noiseObject;
     [SerializeField] private float noiseThreshold = 20f;
-    [SerializeField] private float noiseFlickerSpeed = 15f; // Очень быстрое мерцание шума
-    [SerializeField] private float noiseMaxAlpha = 0.4f;    // Прозрачность шума (чтобы не перекрывал игру полностью)
+    [SerializeField] private float noiseFlickerSpeed = 15f;
+    [SerializeField] private float noiseMaxAlpha = 0.4f;
 
     private PlayerHealth playerHealth;
     private CanvasGroup borderCG;
@@ -31,7 +29,7 @@ public class HealthUI : MonoBehaviour
     private void Start()
     {
         playerHealth = FindFirstObjectByType<PlayerHealth>();
-        
+
         if (healthBar == null)
             healthBar = transform.Find("HealthBar")?.GetComponent<Image>();
 
@@ -53,35 +51,26 @@ public class HealthUI : MonoBehaviour
         if (playerHealth == null) return;
 
         UpdateHealthBar();
-        UpdateHealthText();
         UpdateScreenEffects();
-        UpdateLives(); 
+        UpdateLives();
     }
 
     private void UpdateHealthBar()
     {
         if (healthBar == null) return;
         healthBar.fillAmount = Mathf.Clamp01(playerHealth.GetHealthPercent() / 100f);
-        healthBar.color = Color.white; 
-    }
-
-    private void UpdateHealthText()
-    {
-        if (healthText == null) return;
-        healthText.text = $"{(int)playerHealth.GetCurrentHealth()}/{(int)playerHealth.GetMaxHealth()}";
+        healthBar.color = Color.white;
     }
 
     private void UpdateScreenEffects()
     {
         float healthPercent = playerHealth.GetHealthPercent();
 
-        // 1. УПРАВЛЕНИЕ КРАСНОЙ РАМКОЙ (Работает всегда, если ХП <= 40)
         if (borderCG != null && redBorderObject != null)
         {
             if (healthPercent <= borderThreshold)
             {
                 if (!redBorderObject.activeSelf) redBorderObject.SetActive(true);
-                // Плавное биение сердца
                 borderCG.alpha = (Mathf.Sin(Time.time * borderPulseSpeed) * 0.5f + 0.5f) * borderMaxAlpha;
             }
             else
@@ -91,13 +80,11 @@ public class HealthUI : MonoBehaviour
             }
         }
 
-        // 2. УПРАВЛЕНИЕ ШУМОМ (Накладывается сверху, если ХП <= 20)
         if (noiseCG != null && noiseObject != null)
         {
             if (healthPercent <= noiseThreshold)
             {
                 if (!noiseObject.activeSelf) noiseObject.SetActive(true);
-                // Хаотичное, жуткое мерцание (Perlin Noise)
                 noiseCG.alpha = (Mathf.Sin(Time.time * noiseFlickerSpeed) * 0.5f + 0.5f) * noiseMaxAlpha;
             }
             else
@@ -111,21 +98,15 @@ public class HealthUI : MonoBehaviour
     private void UpdateLives()
     {
         if (lifeIcons == null || lifeIcons.Length == 0) return;
-        int currentLives = playerHealth.currentLives; 
-        
+        int currentLives = playerHealth.currentLives;
+
         for (int i = 0; i < lifeIcons.Length; i++)
         {
-            // ⚪ БЕЛАЯ жизнь - видна если персонаж ещё живой
             if (lifeIcons[i] != null)
-            {
                 lifeIcons[i].enabled = (i < currentLives);
-            }
-            
-            // 🔴 КРАСНАЯ жизнь - видна если эта жизнь потрачена
+
             if (redLifeIcons != null && i < redLifeIcons.Length && redLifeIcons[i] != null)
-            {
                 redLifeIcons[i].enabled = (i >= currentLives);
-            }
         }
     }
 }

@@ -3,23 +3,23 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "Quest_", menuName = "Quest/Create Simple Quest", order = 1)]
 public class QuestData : ScriptableObject
 {
-    [Header("Основное")]
+    [Header("Main")]
     public string questId = "quest_001";
-    
+
     [TextArea(2, 4)]
-    public string questObjective = "Найдите деревню"; // ЭТО главное! Просто текст задания
-    
-    [Header("Статус")]
+    public string questObjective = "Знайдіть село";
+
+    [Header("Status")]
     public bool isActive = false;
     public bool isCompleted = false;
-    
-    [Header("Счётчик (опционально)")]
-    public bool useCounter = false; // Нужен ли счётчик типа (0/3)?
+
+    [Header("Counter")]
+    public bool useCounter = false;
     public int currentCount = 0;
     public int maxCount = 1;
 
-    [Header("Цепочка квестов")]
-    public string nextQuestId; // ID следующего квеста который активируется автоматически
+    [Header("Quest Chain")]
+    public string nextQuestId;
 
     public void Initialize()
     {
@@ -34,7 +34,7 @@ public class QuestData : ScriptableObject
         {
             isActive = true;
             currentCount = 0;
-            Debug.Log($"🎯 ЗАДАНИЕ: {GetFullObjective()}");
+            Debug.Log($"Завдання: {GetFullObjective()}");
         }
     }
 
@@ -43,7 +43,7 @@ public class QuestData : ScriptableObject
         if (useCounter && currentCount < maxCount)
         {
             currentCount++;
-            Debug.Log($"📍 {GetFullObjective()}");
+            Debug.Log($"Прогрес: {GetFullObjective()}");
         }
     }
 
@@ -51,7 +51,7 @@ public class QuestData : ScriptableObject
     {
         isCompleted = true;
         isActive = false;
-        Debug.Log($"✅ ЗАДАНИЕ ВЫПОЛНЕНО!");
+        Debug.Log($"Завдання виконано: {questId}");
     }
 
     public string GetFullObjective()
@@ -62,4 +62,3 @@ public class QuestData : ScriptableObject
             return questObjective;
     }
 }
-

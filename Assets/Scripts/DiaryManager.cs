@@ -11,15 +11,12 @@ public class DiaryManager : MonoBehaviour
 {
     public static DiaryManager instance;
 
-    // Храним записи по ID
     private Dictionary<int, DiaryEntry> entries = new Dictionary<int, DiaryEntry>();
-    
     private bool diaryUnlocked = false;
 
-    [Header("Стартовые записи")]
+    [Header("Starting Entries")]
     [SerializeField] public List<InitialEntryData> startingEntries = new List<InitialEntryData>();
 
-    // Событие - срабатывает когда дневник разблокирован
     public delegate void OnDiaryUnlocked();
     public event OnDiaryUnlocked diaryUnlockedEvent;
 
@@ -33,49 +30,37 @@ public class DiaryManager : MonoBehaviour
 
     private void Start()
     {
-        // Загружаем стартовые записи (только по ID)
         foreach (var data in startingEntries)
         {
-            // Создаем пустую запись - текст будет в картинке страницы
             entries[data.id] = new DiaryEntry
             {
                 id = data.id,
-                title = $"Запись #{data.id}",
-                content = "", // Пусто - текст в UI странице
+                title = $"Запис #{data.id}",
+                content = "",
                 date = "",
                 isNew = false
             };
         }
 
-        Debug.Log($"📖 Загружено {startingEntries.Count} начальных записей");
-        
         if (DiaryUI.instance != null)
             DiaryUI.instance.RefreshDiaryDisplay();
     }
 
-    /// <summary>
-    /// Разблокировать дневник
-    /// </summary>
     public void UnlockDiary()
     {
         diaryUnlocked = true;
-        Debug.Log("📖 Дневник разблокирован!");
-        
-        // 🔔 Срабатываем событие - все записки активируются
+        Debug.Log("Щоденник розблоковано");
         diaryUnlockedEvent?.Invoke();
-        
+
         if (DiaryUI.instance != null)
             DiaryUI.instance.RefreshDiaryDisplay();
     }
 
-    /// <summary>
-    /// Добавить запись по ID
-    /// </summary>
     public void AddEntry(int id, string title, string content, string date)
     {
-        if (id < 1 || id > 9)
+        if (id < 1 || id > 14)
         {
-            Debug.LogError($"❌ ID записи должен быть 1-9, получено: {id}");
+            Debug.LogError($"ID запису має бути від 1 до 14, отримано: {id}");
             return;
         }
 
@@ -88,15 +73,10 @@ public class DiaryManager : MonoBehaviour
             isNew = true
         };
 
-        Debug.Log($"📝 Запись #{id} добавлена!");
-
         if (DiaryUI.instance != null)
             DiaryUI.instance.RefreshDiaryDisplay();
     }
 
-    /// <summary>
-    /// Получить все записи отсортированные по ID
-    /// </summary>
     public List<DiaryEntry> GetSortedEntries()
     {
         List<DiaryEntry> sorted = new List<DiaryEntry>(entries.Values);
@@ -104,9 +84,6 @@ public class DiaryManager : MonoBehaviour
         return sorted;
     }
 
-    /// <summary>
-    /// Получить запись по индексу в отсортированном списке (0 = первая доступная)
-    /// </summary>
     public DiaryEntry GetEntryByDisplayIndex(int displayIndex)
     {
         List<DiaryEntry> sorted = GetSortedEntries();
@@ -116,45 +93,38 @@ public class DiaryManager : MonoBehaviour
 
     public int GetTotalEntries() => entries.Count;
     public bool IsDiaryUnlocked() => diaryUnlocked;
-    public bool IsUnlocked() => diaryUnlocked; // Алиас для совместимости
+    public bool IsUnlocked() => diaryUnlocked;
 
-    /// <summary>
-    /// Добавить запись только по ID (для предметов типа Note)
-    /// Текст берется из starting entries
-    /// </summary>
     public void AddEntryByID(int entryID)
     {
-        if (entryID < 1 || entryID > 9)
+        if (entryID < 1 || entryID > 14)
         {
-            Debug.LogError($"❌ Неверный ID записи: {entryID}");
+            Debug.LogError($"Невірний ID запису: {entryID}");
             return;
         }
 
         if (!diaryUnlocked)
         {
-            Debug.LogWarning("⚠️ Дневник еще не разблокирован, запись не будет добавлена!");
+            Debug.LogWarning("Щоденник ще не розблоковано");
             return;
         }
 
-        // Проверяем, есть ли уже такая запись
         if (entries.ContainsKey(entryID))
         {
-            Debug.LogWarning($"⚠️ Запись #{entryID} уже добавлена!");
+            Debug.LogWarning($"Запис #{entryID} вже додано");
             return;
         }
 
-        // Просто помечаем что запись найдена (создаем пустую запись с пустыми данными)
-        // Реальные текст/картинка отображаются через Page UI
         entries[entryID] = new DiaryEntry
         {
             id = entryID,
-            title = $"Запись #{entryID}",
-            content = "", // Пусто - текст в картинке
+            title = $"Запис #{entryID}",
+            content = "",
             date = "",
             isNew = true
         };
 
-        Debug.Log($"📖 Запись #{entryID} найдена!");
+        Debug.Log($"Запис #{entryID} знайдено");
 
         if (DiaryUI.instance != null)
             DiaryUI.instance.RefreshDiaryDisplay();

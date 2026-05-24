@@ -3,27 +3,22 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine.SceneManagement;
 
-// ==================== ДАННЫЕ СОХРАНЕНИЯ ====================
 [System.Serializable]
 public class SaveData
 {
-    // Игрок
     public float posX, posY, posZ;
     public float rotY;
     public float health;
     public int lives;
     public float stamina;
 
-    // Инвентарь
     public bool inventoryUnlocked;
     public List<SavedItem> smallSlots = new List<SavedItem>();
     public List<SavedItem> weaponSlots = new List<SavedItem>();
 
-    // Квесты
     public List<string> activeQuests = new List<string>();
     public List<string> completedQuests = new List<string>();
 
-    // Дневник
     public bool diaryUnlocked;
     public List<int> diaryEntryIDs = new List<int>();
 }
@@ -35,12 +30,11 @@ public class SavedItem
     public int count;
 }
 
-// ==================== МЕНЕДЖЕР СОХРАНЕНИЙ ====================
 public class SaveSystem : MonoBehaviour
 {
     public static SaveSystem instance;
 
-    [Header("Ссылки")]
+    [Header("References")]
     [SerializeField] private Transform playerTransform;
     [SerializeField] private PlayerHealth playerHealth;
     [SerializeField] private PlayerMovement playerMovement;
@@ -53,16 +47,68 @@ public class SaveSystem : MonoBehaviour
         {
             instance = this;
             DontDestroyOnLoad(gameObject);
+            SceneManager.sceneLoaded += OnSceneLoaded;
         }
         else Destroy(gameObject);
     }
 
-    // ==================== СОХРАНЕНИЕ ====================
+    private void OnDestroy()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        if (scene.name == "SampleScene" && SaveExists())
+        {
+            Invoke(nameof(DelayedLoad), 0.3f);
+        }
+    }
+
+    private void DelayedLoad()
+    {
+        FindReferences();
+        Load();
+        Invoke(nameof(HideFadeAfterLoad), 0.5f);
+    }
+
+    private void HideFadeAfterLoad()
+    {
+        if (SleepSystem.instance != null)
+            SleepSystem.instance.HideFade();
+
+        CanvasGroup[] canvasGroups = FindObjectsByType<CanvasGroup>(FindObjectsSortMode.None);
+        foreach (CanvasGroup cg in canvasGroups)
+        {
+            string name = cg.gameObject.name.ToLower();
+            if (name.Contains("fade") || name.Contains("blur") ||
+                name.Contains("eyelid") || name.Contains("overlay"))
+            {
+                cg.alpha = 0f;
+                cg.gameObject.SetActive(false);
+            }
+        }
+    }
+
+    private void FindReferences()
+    {
+        GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
+        if (playerObj != null)
+        {
+            playerTransform = playerObj.transform;
+            playerHealth = playerObj.GetComponent<PlayerHealth>();
+            playerMovement = playerObj.GetComponent<PlayerMovement>();
+        }
+        else
+        {
+            Debug.LogError("Гравця не знайдено при завантаженні");
+        }
+    }
+
     public void Save()
     {
         SaveData data = new SaveData();
 
-        // --- Игрок ---
         if (playerTransform != null)
         {
             data.posX = playerTransform.position.x;
@@ -78,29 +124,25 @@ public class SaveSystem : MonoBehaviour
         }
 
         if (playerMovement != null)
-        {
             data.stamina = playerMovement.GetCurrentStamina();
-        }
 
-        // --- Инвентарь ---
-        if (InventorySystemNew.instance != null)
+        if (InventorySystem.instance != null)
         {
-            data.inventoryUnlocked = InventorySystemNew.instance.IsInventoryUnlocked();
+            data.inventoryUnlocked = InventorySystem.instance.IsInventoryUnlocked();
 
-            foreach (var slot in InventorySystemNew.instance.smallSlots)
+            foreach (var slot in InventorySystem.instance.smallSlots)
             {
                 if (slot.itemData != null)
                     data.smallSlots.Add(new SavedItem { itemName = slot.itemData.itemName, count = slot.count });
             }
 
-            foreach (var slot in InventorySystemNew.instance.weaponSlots)
+            foreach (var slot in InventorySystem.instance.weaponSlots)
             {
                 if (slot.itemData != null)
                     data.weaponSlots.Add(new SavedItem { itemName = slot.itemData.itemName, count = slot.count });
             }
         }
 
-        // --- Квесты ---
         if (QuestManager.instance != null)
         {
             foreach (var quest in QuestManager.instance.GetAllQuests())
@@ -110,7 +152,6 @@ public class SaveSystem : MonoBehaviour
             }
         }
 
-        // --- Дневник ---
         if (DiaryManager.instance != null)
         {
             data.diaryUnlocked = DiaryManager.instance.IsDiaryUnlocked();
@@ -118,25 +159,22 @@ public class SaveSystem : MonoBehaviour
                 data.diaryEntryIDs.Add(entry.id);
         }
 
-        // --- Запись в файл ---
         string json = JsonUtility.ToJson(data, true);
         File.WriteAllText(savePath, json);
-        Debug.Log($"✅ Игра сохранена: {savePath}");
+        Debug.Log("Гру збережено");
     }
 
-    // ==================== ЗАГРУЗКА ====================
     public void Load()
     {
         if (!File.Exists(savePath))
         {
-            Debug.LogWarning("⚠️ Файл сохранения не найден!");
+            Debug.LogWarning("Файл збереження не знайдено");
             return;
         }
 
         string json = File.ReadAllText(savePath);
         SaveData data = JsonUtility.FromJson<SaveData>(json);
 
-        // --- Игрок ---
         if (playerTransform != null)
         {
             CharacterController cc = playerTransform.GetComponent<CharacterController>();
@@ -152,29 +190,30 @@ public class SaveSystem : MonoBehaviour
             playerHealth.currentLives = data.lives;
         }
 
-        // --- Инвентарь ---
-        if (InventorySystemNew.instance != null)
+        if (InventorySystem.instance != null)
         {
             if (data.inventoryUnlocked)
-                InventorySystemNew.instance.UnlockInventory();
+                InventorySystem.instance.UnlockInventory();
 
-            // Загружаем предметы из Resources
             foreach (var saved in data.smallSlots)
             {
                 ItemData item = Resources.Load<ItemData>($"Items/{saved.itemName}");
-                if (item != null) InventorySystemNew.instance.AddItemToSmallSlots(item, saved.count);
-                else Debug.LogWarning($"⚠️ Предмет не найден: {saved.itemName}");
+                if (item != null)
+                    InventorySystem.instance.AddItemToSmallSlots(item, saved.count);
+                else
+                    Debug.LogWarning($"Предмет не знайдено: {saved.itemName}");
             }
 
             foreach (var saved in data.weaponSlots)
             {
                 ItemData item = Resources.Load<ItemData>($"Items/{saved.itemName}");
-                if (item != null) InventorySystemNew.instance.AddItemToWeaponSlots(item, saved.count);
-                else Debug.LogWarning($"⚠️ Предмет не найден: {saved.itemName}");
+                if (item != null)
+                    InventorySystem.instance.AddItemToWeaponSlots(item, saved.count);
+                else
+                    Debug.LogWarning($"Предмет не знайдено: {saved.itemName}");
             }
         }
 
-        // --- Квесты ---
         if (QuestManager.instance != null)
         {
             foreach (string id in data.activeQuests)
@@ -183,7 +222,6 @@ public class SaveSystem : MonoBehaviour
                 QuestManager.instance.CompleteQuest(id);
         }
 
-        // --- Дневник ---
         if (DiaryManager.instance != null)
         {
             if (data.diaryUnlocked) DiaryManager.instance.UnlockDiary();
@@ -191,16 +229,15 @@ public class SaveSystem : MonoBehaviour
                 DiaryManager.instance.AddEntryByID(id);
         }
 
-        Debug.Log("✅ Игра загружена!");
+        Debug.Log("Гру завантажено");
     }
 
     public bool SaveExists() => File.Exists(savePath);
 
-    // ==================== УПРАВЛЕНИЕ СОХРАНЕНИЯМИ ====================
     public void NewGame()
     {
-        DeleteSave(); // сбрасываем сохранение
-        SceneManager.LoadScene("IntroQuote"); // загружаем первую сцену
+        DeleteSave();
+        SceneManager.LoadScene("IntroQuote");
     }
 
     [ContextMenu("Delete Save")]
@@ -209,16 +246,13 @@ public class SaveSystem : MonoBehaviour
         if (File.Exists(savePath))
         {
             File.Delete(savePath);
-            Debug.Log("🗑️ Сохранение удалено!");
+            Debug.Log("Збереження видалено");
         }
     }
 
     public void ContinueGame()
     {
         if (SaveExists())
-        {
-            SceneManager.LoadScene("SampleScene"); // сразу в игру
-            // Load() вызовется уже в самой сцене
-        }
+            SceneManager.LoadScene("SampleScene");
     }
 }

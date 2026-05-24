@@ -2,79 +2,129 @@ using UnityEngine;
 
 public class LocationTrigger : MonoBehaviour
 {
-    [Header("Квест")]
+    [Header("Quest")]
     [SerializeField] private string questIdToComplete;
     [SerializeField] private string questIdToActivate;
     [SerializeField] private string questIdToIncrement;
 
-    [Header("Проверка инвентаря")]
+    [Header("Inventory Check")]
     [SerializeField] private bool checkInventoryOnExit = false;
 
+    [Header("Zombie Encounter")]
+    [SerializeField] private GameObject zombieObject;
+    [SerializeField] private GameObject[] arenaWalls;
+    [SerializeField] private bool spawnZombieOnExit = false;
+    [SerializeField] private bool blockSprintDuringEncounter = false;
+
     private bool hasTriggered = false;
+    private bool zombieDied = false;
+    private PlayerMovement playerMovement;
+    private EnemyAI enemyAI;
+
+    private void Start()
+    {
+        if (zombieObject != null)
+        {
+            zombieObject.SetActive(false);
+            enemyAI = zombieObject.GetComponent<EnemyAI>();
+        }
+
+        SetArenaWalls(false);
+
+        GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
+        if (playerObj != null)
+            playerMovement = playerObj.GetComponent<PlayerMovement>();
+    }
+
+    private void Update()
+    {
+        if (zombieObject != null && zombieObject.activeSelf && enemyAI != null)
+        {
+            if (!zombieDied && enemyAI.currentState == EnemyAI.EnemyState.Die)
+            {
+                zombieDied = true;
+                OnZombieDied();
+            }
+        }
+    }
 
     private void OnTriggerEnter(Collider collision)
     {
         if (hasTriggered) return;
-
-        // Проверяем что это игрок
-        if (!collision.CompareTag("Player"))
-        {
-            return;
-        }
+        if (!collision.CompareTag("Player")) return;
+        if (spawnZombieOnExit) return;
 
         hasTriggered = true;
         TriggerQuestEvent();
     }
 
-    private void TriggerQuestEvent()
+    private void OnTriggerExit(Collider other)
     {
-        if (QuestManager.instance == null)
+        if (!other.CompareTag("Player")) return;
+
+        if (spawnZombieOnExit && !hasTriggered)
         {
-            Debug.LogError("❌ QuestManager не найден!");
+            hasTriggered = true;
+
+            if (zombieObject != null)
+                zombieObject.SetActive(true);
+
+            SetArenaWalls(true);
+
+            if (blockSprintDuringEncounter && playerMovement != null)
+                playerMovement.TriggerExhaustion();
+
+            TriggerQuestEvent();
             return;
         }
 
-        Debug.Log($"🎯 LocationTrigger: Игрок вошел в {gameObject.name}");
-
-        // Завершаем текущий квест
-        if (!string.IsNullOrEmpty(questIdToComplete))
-        {
-            QuestManager.instance.CompleteQuest(questIdToComplete);
-            Debug.Log($"✅ Квест '{questIdToComplete}' завершен!");
-        }
-
-        // Активируем следующий квест
-        if (!string.IsNullOrEmpty(questIdToActivate))
-        {
-            QuestManager.instance.ActivateQuest(questIdToActivate);
-            Debug.Log($"📍 Квест '{questIdToActivate}' активирован!");
-        }
-
-        // Повышаем счётчик квеста
-        if (!string.IsNullOrEmpty(questIdToIncrement))
-        {
-            QuestManager.instance.IncrementQuestCounter(questIdToIncrement);
-            Debug.Log($"📍 Счётчик квеста '{questIdToIncrement}' повышен!");
-        }
-    }
-
-    private void OnTriggerExit(Collider other)
-    {
         if (!checkInventoryOnExit) return;
-        if (!other.CompareTag("Player")) return;
 
-        bool hasKnife = InventorySystemNew.instance.HasWeapon("Knife");
+        bool hasKnife = InventorySystem.instance.HasWeapon("Knife");
         bool hasDiary = DiaryManager.instance.IsDiaryUnlocked();
 
         if (hasKnife && hasDiary)
         {
-            Debug.Log("🎬 Выход — запускаем катсцену!");
             QuestManager.instance.CompleteQuest("quest_leave_hut");
             QuestManager.instance.ActivateQuest("quest_survive");
         }
         else
         {
-            Debug.Log("⚠️ Нет ножа или дневника!");
+            Debug.Log("Немає ножа або щоденника");
         }
+    }
+
+    private void OnZombieDied()
+    {
+        SetArenaWalls(false);
+
+        if (blockSprintDuringEncounter && playerMovement != null)
+            playerMovement.UnlockSprint();
+
+        Debug.Log("Зомбі переможено — арена відкрита");
+    }
+
+    private void SetArenaWalls(bool active)
+    {
+        if (arenaWalls == null) return;
+        foreach (GameObject wall in arenaWalls)
+        {
+            if (wall != null)
+                wall.SetActive(active);
+        }
+    }
+
+    private void TriggerQuestEvent()
+    {
+        if (QuestManager.instance == null) return;
+
+        if (!string.IsNullOrEmpty(questIdToComplete))
+            QuestManager.instance.CompleteQuest(questIdToComplete);
+
+        if (!string.IsNullOrEmpty(questIdToActivate))
+            QuestManager.instance.ActivateQuest(questIdToActivate);
+
+        if (!string.IsNullOrEmpty(questIdToIncrement))
+            QuestManager.instance.IncrementQuestCounter(questIdToIncrement);
     }
 }
