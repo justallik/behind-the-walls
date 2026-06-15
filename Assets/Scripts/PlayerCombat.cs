@@ -35,7 +35,7 @@ public class PlayerCombat : MonoBehaviour
     {
         if (inputHandler == null || playerMovement == null) return;
 
-        CheckCrouchingDodgeInput();
+        CheckDodgeInput();
         HandleBlockLogic();
 
         bool hasWeapon = EquipmentManager.instance != null &&
@@ -51,6 +51,31 @@ public class PlayerCombat : MonoBehaviour
             PerformSuperAttack();
     }
 
+    private void CheckDodgeInput()
+    {
+        // Dodge — тільки якщо НЕ спринтує (Shift використовується і для спринту)
+        // Перевіряємо Ctrl замість Shift щоб не конфліктувати
+        if (!Keyboard.current.leftCtrlKey.isPressed) return;
+
+        Vector3 dodgeDir = Vector3.zero;
+
+        if (Keyboard.current.aKey.wasPressedThisFrame)      dodgeDir = -playerMovement.transform.right;
+        else if (Keyboard.current.dKey.wasPressedThisFrame) dodgeDir = playerMovement.transform.right;
+        else if (Keyboard.current.sKey.wasPressedThisFrame) dodgeDir = -playerMovement.transform.forward;
+
+        if (dodgeDir == Vector3.zero) return;
+
+        if (playerMovement.HasEnoughStamina(dodgeStaminaCost))
+        {
+            playerMovement.UseStamina(dodgeStaminaCost);
+            playerMovement.PerformCrouchingDodge(dodgeDir);
+            PlayWeaponAnimation("Dodge");
+
+            PlayerHealth playerHealth = GetComponent<PlayerHealth>();
+            if (playerHealth != null) playerHealth.StartIFrames();
+        }
+    }
+
     private void PerformAttack()
     {
         lastAttackTime = Time.time;
@@ -64,35 +89,6 @@ public class PlayerCombat : MonoBehaviour
         if (weaponData != null) CheckHit(weaponData.weaponDamage, false);
     }
 
-    private void CheckCrouchingDodgeInput()
-    {
-        if (Keyboard.current.shiftKey.isPressed)
-        {
-            Vector3 dodgeDir = Vector3.zero;
-
-            if (Keyboard.current.aKey.wasPressedThisFrame) dodgeDir = -playerMovement.transform.right;
-            else if (Keyboard.current.dKey.wasPressedThisFrame) dodgeDir = playerMovement.transform.right;
-            else if (Keyboard.current.sKey.wasPressedThisFrame) dodgeDir = -playerMovement.transform.forward;
-
-            if (dodgeDir != Vector3.zero)
-            {
-                if (playerMovement.HasEnoughStamina(dodgeStaminaCost))
-                {
-                    playerMovement.UseStamina(dodgeStaminaCost);
-                    playerMovement.PerformCrouchingDodge(dodgeDir);
-                    PlayWeaponAnimation("Dodge");
-
-                    PlayerHealth playerHealth = GetComponent<PlayerHealth>();
-                    if (playerHealth != null) playerHealth.StartIFrames();
-                }
-                else
-                {
-                    playerMovement.TriggerExhaustion();
-                }
-            }
-        }
-    }
-
     private void HandleBlockLogic()
     {
         if (!inputHandler.BlockInput)
@@ -102,14 +98,15 @@ public class PlayerCombat : MonoBehaviour
             return;
         }
 
-        if (inputHandler.BlockInput && canBlockAgain &&
+        if (canBlockAgain &&
             playerMovement.GetCurrentStamina() > 0 &&
             blockHitsAbsorbed < maxBlockHits)
         {
             if (!isBlocking) StartBlock();
 
             float staminaCost = 15f;
-            if (EquipmentManager.instance != null && EquipmentManager.instance.isEquipped &&
+            if (EquipmentManager.instance != null &&
+                EquipmentManager.instance.isEquipped &&
                 EquipmentManager.instance.currentEquippedItem != null)
             {
                 staminaCost = EquipmentManager.instance.currentEquippedItem.blockStaminaCost;
@@ -152,28 +149,6 @@ public class PlayerCombat : MonoBehaviour
         }
     }
 
-    private void CheckExecuteInput()
-    {
-        if (!Keyboard.current.fKey.wasPressedThisFrame) return;
-
-        Collider[] hits = Physics.OverlapSphere(transform.position, attackRange);
-
-        foreach (Collider collider in hits)
-        {
-            EnemyHealth enemy = collider.GetComponentInParent<EnemyHealth>();
-            if (enemy == null) continue;
-
-            float healthPercent = (enemy.GetCurrentHealth() / enemy.maxHealth) * 100f;
-
-            if (healthPercent < 30f)
-            {
-                PlayWeaponAnimation("Execute");
-                enemy.TakeDamage(enemy.maxHealth);
-                return;
-            }
-        }
-    }
-
     private void PerformSuperAttack()
     {
         float superCost = 40f;
@@ -189,10 +164,6 @@ public class PlayerCombat : MonoBehaviour
 
             ItemData weaponData = EquipmentManager.instance?.currentEquippedItem;
             if (weaponData != null) CheckHit(weaponData.weaponDamage * 2f, true);
-        }
-        else
-        {
-            playerMovement.TriggerExhaustion();
         }
     }
 

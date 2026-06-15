@@ -212,7 +212,7 @@ public class ItemContextMenu : MonoBehaviour
         }
 
         if (hintText != null)
-            hintText.text = "Оберіть слот: 1  2  3  4 (Esc — скасувати)";
+            hintText.text = "Press 1-4 to assign";
     }
 
     private void HideHintPanel()

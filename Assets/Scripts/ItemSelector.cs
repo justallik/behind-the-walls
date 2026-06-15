@@ -63,31 +63,30 @@ public class ItemSelector : MonoBehaviour
 
         if (Physics.Raycast(ray, out RaycastHit hit, rayDistance, interactableMask))
         {
-            foundItem = hit.collider.GetComponent<InteractableItem>();
-            if (foundItem == null)
-                foundItem = hit.collider.GetComponentInParent<InteractableItem>();
-
-            if (foundItem == null)
+            // Сначала ищем кровать (приоритет)
+            foundBed = hit.collider.GetComponent<InteractableBed>();
+            if (foundBed == null)
                 foundBed = hit.collider.GetComponentInParent<InteractableBed>();
+
+            if (foundBed == null)
+            {
+                foundItem = hit.collider.GetComponent<InteractableItem>();
+                if (foundItem == null)
+                    foundItem = hit.collider.GetComponentInParent<InteractableItem>();
+            }
         }
 
         if (foundItem != null)
         {
-            if (currentItem != foundItem)
-            {
-                currentItem = foundItem;
-                currentBed = null;
-                UpdateItemUI();
-            }
+            currentItem = foundItem;
+            currentBed = null;
+            UpdateItemUI();
         }
         else if (foundBed != null)
         {
-            if (currentBed != foundBed)
-            {
-                currentBed = foundBed;
-                currentItem = null;
-                UpdateBedUI();
-            }
+            currentBed = foundBed;
+            currentItem = null;
+            UpdateBedUI();
         }
         else
         {
@@ -101,8 +100,8 @@ public class ItemSelector : MonoBehaviour
         if (currentItem == null || currentItem.itemData == null) return;
 
         string actionText = currentItem.itemData.itemType == ItemData.ItemType.Note
-            ? "Прочитати "
-            : "Взяти ";
+            ? "Read "
+            : "Pick up ";
 
         if (tmpText != null)
             tmpText.text = "[E] " + actionText + currentItem.itemData.itemName;
@@ -113,11 +112,16 @@ public class ItemSelector : MonoBehaviour
 
     private void UpdateBedUI()
     {
+        Debug.Log("UpdateBedUI вызван!");
         if (tmpText != null)
-            tmpText.text = "[E] Лягти спати";
+            tmpText.text = "[E] Sleep";
+        else
+            Debug.Log("tmpText == null!");
 
         if (promptUI != null)
             promptUI.SetActive(true);
+        else
+            Debug.Log("promptUI == null!");
     }
 
     private void ClearSelection()

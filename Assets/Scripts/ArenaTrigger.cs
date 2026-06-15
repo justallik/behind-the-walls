@@ -8,8 +8,12 @@ public class ArenaTrigger : MonoBehaviour
     [Header("Return Point")]
     [SerializeField] private Transform returnPoint;
 
+    [Header("Respawn")]
+    [SerializeField] private Transform arenaRespawnPoint;
+
     private EnemyAI enemyAI;
     private bool encounterActive = false;
+    private Transform originalRespawnPoint;
 
     private void Start()
     {
@@ -20,10 +24,25 @@ public class ArenaTrigger : MonoBehaviour
     private void Update()
     {
         if (zombieObject != null && zombieObject.activeSelf && !encounterActive)
+        {
             encounterActive = true;
 
+            // Зберігаємо оригінальну точку і підміняємо на точку арени
+            if (PlayerHealth.instance != null && arenaRespawnPoint != null)
+            {
+                originalRespawnPoint = PlayerHealth.instance.respawnPoint;
+                PlayerHealth.instance.respawnPoint = arenaRespawnPoint;
+            }
+        }
+
         if (encounterActive && enemyAI != null && enemyAI.currentState == EnemyAI.EnemyState.Die)
+        {
             encounterActive = false;
+
+            // Повертаємо оригінальну точку респавну
+            if (PlayerHealth.instance != null && originalRespawnPoint != null)
+                PlayerHealth.instance.respawnPoint = originalRespawnPoint;
+        }
     }
 
     private void OnTriggerExit(Collider other)

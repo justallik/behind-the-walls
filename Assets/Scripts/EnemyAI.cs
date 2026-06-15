@@ -36,7 +36,7 @@ public class EnemyAI : MonoBehaviour
 
     [Header("Attack")]
     public float attackDamage = 20f;
-    public float attackCooldown = 3.5f;
+    public float attackCooldown = 4f;
     private float nextAttackTime = 0f;
 
     [Header("Audio")]
@@ -110,7 +110,10 @@ public class EnemyAI : MonoBehaviour
         canSeePlayer = CanSeePlayer();
 
         if (animator != null)
-            animator.SetFloat("Speed", agent.velocity.magnitude);
+        {
+            float normalizedSpeed = agent.velocity.magnitude / patrolSpeed;
+            animator.SetFloat("Speed", Mathf.Clamp01(normalizedSpeed));
+        }
 
         previousState = currentState;
         switch (currentState)
@@ -145,16 +148,19 @@ public class EnemyAI : MonoBehaviour
         float currentVisionAngle = isStealth ? visionAngle * 0.5f : visionAngle;
 
         Vector3 directionToPlayer = player.position - transform.position;
-        if (directionToPlayer.sqrMagnitude > currentVisionRange * currentVisionRange) return false;
-
-        float angleToPlayer = Vector3.Angle(transform.forward, directionToPlayer.normalized);
-        if (angleToPlayer > currentVisionAngle / 2f) return false;
+        float dist = directionToPlayer.magnitude;
+        float angle = Vector3.Angle(transform.forward, directionToPlayer.normalized);
 
         Vector3 rayOrigin = transform.position + Vector3.up;
         Vector3 rayDirection = (player.position - rayOrigin).normalized;
         float rayDistance = Vector3.Distance(rayOrigin, player.position);
+        bool blocked = Physics.Raycast(rayOrigin, rayDirection, rayDistance, visionObstacles);
 
-        if (Physics.Raycast(rayOrigin, rayDirection, rayDistance, visionObstacles)) return false;
+        Debug.Log($"Dist:{dist:F1} | Angle:{angle:F1}/{currentVisionAngle/2:F1} | Range:{currentVisionRange} | Blocked:{blocked} | Stealth:{isStealth}");
+
+        if (directionToPlayer.sqrMagnitude > currentVisionRange * currentVisionRange) return false;
+        if (angle > currentVisionAngle / 2f) return false;
+        if (blocked) return false;
 
         return true;
     }
@@ -295,6 +301,10 @@ public class EnemyAI : MonoBehaviour
         SafeStop();
         if (agent != null && agent.isOnNavMesh) agent.ResetPath();
 
+        // Тримаємо IsAggro true під час атаки
+        if (animator != null)
+            animator.SetBool("IsAggro", true);
+
         Vector3 dir = player.position - transform.position;
         dir.y = 0;
         if (dir.sqrMagnitude > 0.001f)
@@ -316,11 +326,14 @@ public class EnemyAI : MonoBehaviour
         isAttacking = true;
 
         if (animator != null)
+        {
+            animator.ResetTrigger("Attack");
             animator.SetTrigger("Attack");
+        }
 
         PlaySoundEffect(GetRandomAttackSound());
 
-        yield return new WaitForSeconds(0.9f);
+        yield return new WaitForSeconds(1.5f);
 
         if (currentState == EnemyState.Attack && playerHealth != null)
         {
@@ -328,6 +341,8 @@ public class EnemyAI : MonoBehaviour
             if (distSqr <= (attackRange * 2f) * (attackRange * 2f))
                 playerHealth.TakeDamage(attackDamage);
         }
+
+        yield return new WaitForSeconds(1.8f);
 
         isAttacking = false;
         attackCoroutine = null;

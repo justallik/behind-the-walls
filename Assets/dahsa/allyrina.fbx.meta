@@ -3,7 +3,17 @@ guid: e046264a144de5a43835e16e8baf91ee
 ModelImporter:
   serializedVersion: 24200
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Material #47
+    second: {fileID: 2100000, guid: 9af71d150e72b8647b8b52aa8045dd6e, type: 2}
+  - first:
+      type: UnityEngine:Texture2D
+      assembly: UnityEngine.CoreModule
+      name: allyrina
+    second: {fileID: 2800000, guid: 71a14c0e8174e644b9b2a837c91aec64, type: 3}
   materials:
     materialImportMode: 2
     materialName: 0

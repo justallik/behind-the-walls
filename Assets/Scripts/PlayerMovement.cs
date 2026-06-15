@@ -31,7 +31,6 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float staminaRecoveryWalk = 3.33f;
     [SerializeField] private float staminaRecoveryIdle = 5f;
     [SerializeField] private float regenDelay = 1.0f;
-    [SerializeField] private AnimationCurve staminaDrainCurve = AnimationCurve.Linear(0, 1, 1, 0.5f);
     private float regenTimer = 0f;
 
     [Header("Dodge")]
@@ -44,13 +43,14 @@ public class PlayerMovement : MonoBehaviour
 
     private float currentSpeed = 0f;
     private Vector3 velocity = Vector3.zero;
-    private float currentStamina;
+    public float currentStamina;
 
     private bool isGrounded;
     private bool isCrouching;
     private bool canSprint = true;
     private bool isDodging = false;
-    private bool unlimitedStamina = false;
+
+    public bool IsSprinting { get; private set; }
 
     private Vector3 standingCenterPos;
     private Vector3 standingVisualScale;
@@ -92,10 +92,10 @@ public class PlayerMovement : MonoBehaviour
         }
 
         GroundedCheck();
-        UpdateStamina();
         ApplyGravity();
         HandleCrouch();
         Move();
+        UpdateStamina();
     }
 
     private void GroundedCheck()
@@ -106,40 +106,49 @@ public class PlayerMovement : MonoBehaviour
         isGrounded = Physics.CheckSphere(cachedSpherePosition, groundedRadius, groundLayers, QueryTriggerInteraction.Ignore);
     }
 
+    private void Move()
+    {
+        bool wantSprint = inputHandler.SprintInput && !isCrouching && canSprint;
+        bool isMoving = inputHandler.MoveInput.sqrMagnitude > MOVE_INPUT_THRESHOLD_SQ;
+
+        float targetSpeed = isMoving ? (wantSprint ? sprintSpeed : normalSpeed) : 0f;
+        if (isCrouching && targetSpeed > 0) targetSpeed = crouchSpeed;
+
+        if (Mathf.Abs(currentSpeed - targetSpeed) > 0.1f)
+            currentSpeed = Mathf.Lerp(currentSpeed, targetSpeed, Time.deltaTime * speedChangeRate);
+        else
+            currentSpeed = targetSpeed;
+
+        IsSprinting = wantSprint && isMoving && currentSpeed > normalSpeed * 0.9f;
+
+        Vector3 inputDirection = Vector3.zero;
+        if (isMoving)
+            inputDirection = (transform.right * inputHandler.MoveInput.x + transform.forward * inputHandler.MoveInput.y).normalized;
+
+        controller.Move(inputDirection * currentSpeed * Time.deltaTime + new Vector3(0, velocity.y * Time.deltaTime, 0));
+    }
+
     private void UpdateStamina()
     {
-        if (unlimitedStamina)
-        {
-            currentStamina = maxStamina;
-            canSprint = true;
-            return;
-        }
-
         bool isMoving = inputHandler.MoveInput.sqrMagnitude > MOVE_INPUT_THRESHOLD_SQ;
-        bool isSprinting = inputHandler.SprintInput && !isCrouching && currentSpeed > 0;
 
         if (regenTimer > 0) regenTimer -= Time.deltaTime;
 
-        if (isSprinting && currentStamina > 0)
+        if (IsSprinting && currentStamina > 0)
         {
-            float normalizedStamina = currentStamina / maxStamina;
-            float curveMultiplier = staminaDrainCurve.Evaluate(normalizedStamina);
-            currentStamina -= staminaDrainRate * curveMultiplier * Time.deltaTime;
+            currentStamina -= staminaDrainRate * Time.deltaTime;
             regenTimer = regenDelay;
-            if (currentStamina <= 0)
+
+            if (currentStamina <= 0.01f)
             {
-                currentStamina = 0;
+                currentStamina = 0f;
                 canSprint = false;
-                Debug.Log("Витривалість вичерпана");
+                IsSprinting = false;
             }
         }
         else if (currentStamina < maxStamina && regenTimer <= 0)
         {
-            if (!isMoving)
-                currentStamina += staminaRecoveryIdle * Time.deltaTime;
-            else if (isMoving && !isSprinting)
-                currentStamina += staminaRecoveryWalk * Time.deltaTime;
-
+            currentStamina += (!isMoving ? staminaRecoveryIdle : staminaRecoveryWalk) * Time.deltaTime;
             currentStamina = Mathf.Min(currentStamina, maxStamina);
 
             if (!canSprint && currentStamina >= maxStamina * 0.5f)
@@ -163,89 +172,60 @@ public class PlayerMovement : MonoBehaviour
     private void HandleCrouch()
     {
         bool wantCrouch = inputHandler.CrouchInput;
-        if (wantCrouch != isCrouching)
-        {
-            isCrouching = wantCrouch;
-            if (isCrouching)
-            {
-                controller.height = crouchHeight;
-                float newCenterY = standingCenterPos.y - (normalHeight - crouchHeight) * 0.5f;
-                controller.center = new Vector3(standingCenterPos.x, newCenterY, standingCenterPos.z);
+        if (wantCrouch == isCrouching) return;
 
-                if (visualCrouchRoot != null)
-                {
-                    visualCrouchRoot.localScale = new Vector3(standingVisualScale.x, standingVisualScale.y * crouchVisualScaleY, standingVisualScale.z);
-                    visualCrouchRoot.localPosition = standingVisualPos + new Vector3(0, -(normalHeight - crouchHeight) * 0.5f, 0);
-                }
-            }
-            else
+        isCrouching = wantCrouch;
+        if (isCrouching)
+        {
+            controller.height = crouchHeight;
+            float newCenterY = standingCenterPos.y - (normalHeight - crouchHeight) * 0.5f;
+            controller.center = new Vector3(standingCenterPos.x, newCenterY, standingCenterPos.z);
+            if (visualCrouchRoot != null)
             {
-                controller.height = normalHeight;
-                controller.center = standingCenterPos;
-                if (visualCrouchRoot != null)
-                {
-                    visualCrouchRoot.localScale = standingVisualScale;
-                    visualCrouchRoot.localPosition = standingVisualPos;
-                }
+                visualCrouchRoot.localScale = new Vector3(standingVisualScale.x, standingVisualScale.y * crouchVisualScaleY, standingVisualScale.z);
+                visualCrouchRoot.localPosition = standingVisualPos + new Vector3(0, -(normalHeight - crouchHeight) * 0.5f, 0);
+            }
+        }
+        else
+        {
+            controller.height = normalHeight;
+            controller.center = standingCenterPos;
+            if (visualCrouchRoot != null)
+            {
+                visualCrouchRoot.localScale = standingVisualScale;
+                visualCrouchRoot.localPosition = standingVisualPos;
             }
         }
     }
 
-    private void Move()
+    // ── Public getters ───────────────────────────────────────────────
+    public float GetCurrentSpeed()              => currentSpeed;
+    public bool  IsCrouching()                  => isCrouching;
+    public float GetSprintSpeed()               => sprintSpeed;
+    public float GetCurrentStamina()            => currentStamina;
+    public float GetMaxStamina()                => maxStamina;
+    public bool  CanSprint()                    => canSprint;
+    public bool  HasEnoughStamina(float amount) => currentStamina >= amount;
+
+    public void SetStamina(float value)
     {
-        float targetSpeed = inputHandler.MoveInput.sqrMagnitude > MOVE_INPUT_THRESHOLD_SQ
-            ? (inputHandler.SprintInput && !isCrouching && canSprint ? sprintSpeed : normalSpeed)
-            : 0f;
-
-        if (isCrouching && targetSpeed > 0) targetSpeed = crouchSpeed;
-
-        if (Mathf.Abs(currentSpeed - targetSpeed) > 0.1f)
-            currentSpeed = Mathf.Lerp(currentSpeed, targetSpeed, Time.deltaTime * speedChangeRate);
-        else
-            currentSpeed = targetSpeed;
-
-        Vector3 inputDirection = Vector3.zero;
-        if (inputHandler.MoveInput.sqrMagnitude > MOVE_INPUT_THRESHOLD_SQ)
-            inputDirection = (transform.right * inputHandler.MoveInput.x + transform.forward * inputHandler.MoveInput.y).normalized;
-
-        Vector3 movement = inputDirection * currentSpeed * Time.deltaTime + new Vector3(0, velocity.y * Time.deltaTime, 0);
-        controller.Move(movement);
+        currentStamina = Mathf.Clamp(value, 0f, maxStamina);
     }
 
-    public float GetCurrentSpeed() => currentSpeed;
-    public bool IsCrouching() => isCrouching;
-    public float GetSprintSpeed() => sprintSpeed;
-    public float GetCurrentStamina() => currentStamina;
-    public float GetMaxStamina() => maxStamina;
-    public bool CanSprint() => canSprint;
-    public bool HasEnoughStamina(float amount) => currentStamina >= amount;
-
+    // НЕ скидає regenTimer — блок і додж не заважають відновленню після спринту
     public void UseStamina(float amount)
     {
-        if (unlimitedStamina) return;
         currentStamina -= amount;
-        regenTimer = regenDelay;
-        if (currentStamina <= 0)
+        if (currentStamina <= 0.01f)
         {
             currentStamina = 0f;
             canSprint = false;
         }
     }
 
-    public void TriggerExhaustion()
-    {
-        if (unlimitedStamina) return;
-        canSprint = false;
-        regenTimer = regenDelay;
-        Debug.Log("Ноа знесилений — спринт заблоковано");
-    }
+    public void ResetSpeed() => currentSpeed = 0f;
 
-    public void SetUnlimitedStamina(bool value)
-    {
-        unlimitedStamina = value;
-        if (value) currentStamina = maxStamina;
-    }
-
+    // ── Dodge ────────────────────────────────────────────────────────
     public void PerformCrouchingDodge(Vector3 sideDirection)
     {
         if (!isDodging) StartCoroutine(DodgeRoutine(sideDirection));
@@ -259,7 +239,6 @@ public class PlayerMovement : MonoBehaviour
         controller.height = crouchHeight;
         float newCenterY = standingCenterPos.y - (normalHeight - crouchHeight) * 0.5f;
         controller.center = new Vector3(standingCenterPos.x, newCenterY, standingCenterPos.z);
-
         if (visualCrouchRoot != null)
         {
             visualCrouchRoot.localScale = new Vector3(standingVisualScale.x, standingVisualScale.y * crouchVisualScaleY, standingVisualScale.z);
@@ -288,10 +267,8 @@ public class PlayerMovement : MonoBehaviour
         isDodging = false;
     }
 
-    public void UnlockSprint() => canSprint = true;
-
-    public void ResetSpeed()
-    {
-        currentSpeed = 0f;
-    }
+    // ── Заглушки ─────────────────────────────────────────────────────
+    public void TriggerExhaustion()             { }
+    public void UnlockSprint()                  { }
+    public void SetUnlimitedStamina(bool value) { }
 }

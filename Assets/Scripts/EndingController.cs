@@ -24,33 +24,36 @@ public class EndingController : MonoBehaviour
 
     [Header("Dialogue")]
     [SerializeField] private DialogueManager dialogueManager;
-    [SerializeField] private string endingLine = "НОА...";
+    [SerializeField] private string endingLine = "Noa...";
     [SerializeField] private float dialogueHoldDuration = 3f;
+
+    [Header("Audio")]
+    [SerializeField] private AudioSource audioSource;
+    [SerializeField] private AudioClip voiceClip;
 
     [Header("Fade")]
     [SerializeField] private CanvasGroup fadeScreen;
 
-    [Header("Ending Text")]
-    [SerializeField] private CanvasGroup endingTextGroup;
-    [SerializeField] private float textFadeInDuration = 2f;
-    [SerializeField] private GameObject pressSpaceHint;
+    [Header("Final Image")]
+    [SerializeField] private CanvasGroup finalImage;
+    [SerializeField] private float finalImageFadeDuration = 0f;
 
     [Header("Timings")]
+    [SerializeField] private float closedEyelidsDelay = 2f;
     [SerializeField] private float eyeOpenDuration   = 2.5f;
     [SerializeField] private float blurFadeDuration  = 3.8f;
-    [SerializeField] private float pauseBeforeDialog = 1f;
-    [SerializeField] private float pauseAfterDialog  = 2f;
+    [SerializeField] private float pauseBeforeDialog = 0.5f;
+    [SerializeField] private float pauseAfterDialog  = 1f;
 
     private void Awake() => instance = this;
 
     private void Start()
     {
-        if (eyelidTop != null)       eyelidTop.gameObject.SetActive(false);
-        if (eyelidBottom != null)    eyelidBottom.gameObject.SetActive(false);
-        if (blurOverlay != null)     { blurOverlay.alpha = 0f;     blurOverlay.gameObject.SetActive(false); }
-        if (fadeScreen != null)      { fadeScreen.alpha = 0f;      fadeScreen.gameObject.SetActive(false); }
-        if (endingTextGroup != null) { endingTextGroup.alpha = 0f; endingTextGroup.gameObject.SetActive(false); }
-        if (pressSpaceHint != null)  pressSpaceHint.SetActive(false);
+        if (eyelidTop != null) eyelidTop.gameObject.SetActive(false);
+        if (eyelidBottom != null) eyelidBottom.gameObject.SetActive(false);
+        if (blurOverlay != null) { blurOverlay.alpha = 0f; blurOverlay.gameObject.SetActive(false); }
+        if (fadeScreen != null) { fadeScreen.alpha = 0f; fadeScreen.gameObject.SetActive(false); }
+        if (finalImage != null) { finalImage.alpha = 0f; finalImage.gameObject.SetActive(false); }
     }
 
     public void StartEnding()
@@ -74,9 +77,9 @@ public class EndingController : MonoBehaviour
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = false;
 
-        if (eyelidTop != null)    { eyelidTop.gameObject.SetActive(true);   SetEyelids(eyelidTopClosed, eyelidBottomClosed); }
-        if (eyelidBottom != null)   eyelidBottom.gameObject.SetActive(true);
-        if (blurOverlay != null)  { blurOverlay.gameObject.SetActive(true); blurOverlay.alpha = 1f; }
+        if (eyelidTop != null) { eyelidTop.gameObject.SetActive(true); SetEyelids(eyelidTopClosed, eyelidBottomClosed); }
+        if (eyelidBottom != null) eyelidBottom.gameObject.SetActive(true);
+        if (blurOverlay != null) { blurOverlay.gameObject.SetActive(true); blurOverlay.alpha = 1f; }
 
         StartCoroutine(EndingRoutine());
     }
@@ -91,13 +94,12 @@ public class EndingController : MonoBehaviour
         }
 
         StartCoroutine(FadeCanvas(blurOverlay, 1f, 0f, blurFadeDuration));
-        yield return StartCoroutine(AnimateEyelids(
-            eyelidTopClosed, eyelidTopOpen,
-            eyelidBottomClosed, eyelidBottomOpen,
-            eyeOpenDuration
-        ));
-
+        yield return new WaitForSeconds(closedEyelidsDelay);
+        yield return StartCoroutine(AnimateEyelids(eyelidTopClosed, eyelidTopOpen, eyelidBottomClosed, eyelidBottomOpen, eyeOpenDuration));
         yield return new WaitForSeconds(pauseBeforeDialog);
+
+        if (audioSource != null && voiceClip != null)
+            audioSource.PlayOneShot(voiceClip);
 
         if (dialogueManager != null)
         {
@@ -105,24 +107,22 @@ public class EndingController : MonoBehaviour
             yield return new WaitForSeconds(dialogueHoldDuration);
             dialogueManager.HideDialogue();
         }
+        else
+        {
+            float waitTime = (voiceClip != null) ? voiceClip.length : dialogueHoldDuration;
+            yield return new WaitForSeconds(waitTime);
+        }
 
         yield return new WaitForSeconds(pauseAfterDialog);
 
-        if (fadeScreen != null)
-            fadeScreen.alpha = 1f;
-
-        yield return new WaitForSeconds(0.5f);
-
-        if (endingTextGroup != null)
+        if (finalImage != null)
         {
-            endingTextGroup.gameObject.SetActive(true);
-            yield return StartCoroutine(FadeCanvas(endingTextGroup, 0f, 1f, textFadeInDuration));
+            finalImage.gameObject.SetActive(true);
+            if (finalImageFadeDuration > 0)
+                yield return StartCoroutine(FadeCanvas(finalImage, 0f, 1f, finalImageFadeDuration));
+            else
+                finalImage.alpha = 1f;
         }
-
-        yield return new WaitForSeconds(5f);
-
-        if (pressSpaceHint != null)
-            pressSpaceHint.SetActive(true);
 
         yield return new WaitUntil(() =>
             Keyboard.current != null &&
@@ -152,18 +152,10 @@ public class EndingController : MonoBehaviour
         {
             timer += Time.deltaTime;
             float t = Mathf.SmoothStep(0f, 1f, timer / duration);
-
             if (eyelidTop != null)
-                eyelidTop.anchoredPosition = new Vector2(
-                    eyelidTop.anchoredPosition.x,
-                    Mathf.Lerp(topFrom, topTo, t)
-                );
+                eyelidTop.anchoredPosition = new Vector2(eyelidTop.anchoredPosition.x, Mathf.Lerp(topFrom, topTo, t));
             if (eyelidBottom != null)
-                eyelidBottom.anchoredPosition = new Vector2(
-                    eyelidBottom.anchoredPosition.x,
-                    Mathf.Lerp(botFrom, botTo, t)
-                );
-
+                eyelidBottom.anchoredPosition = new Vector2(eyelidBottom.anchoredPosition.x, Mathf.Lerp(botFrom, botTo, t));
             yield return null;
         }
     }

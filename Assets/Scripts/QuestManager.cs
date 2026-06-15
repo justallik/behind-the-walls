@@ -1,5 +1,4 @@
 using UnityEngine;
-using TMPro;
 using System.Collections.Generic;
 
 public class QuestManager : MonoBehaviour
@@ -54,14 +53,10 @@ public class QuestManager : MonoBehaviour
         Debug.Log($"Ініціалізовано квестів: {questDict.Count}");
     }
 
+    // ── Геймплей — з подіями та автосейвом ──────────────────────────────────
+
     public void ActivateQuest(string questId)
     {
-        if (questDict == null || questDict.Count == 0)
-        {
-            Debug.LogError("questDict порожній");
-            return;
-        }
-
         if (!questDict.ContainsKey(questId))
         {
             Debug.LogError($"Квест не знайдено: {questId}");
@@ -69,15 +64,8 @@ public class QuestManager : MonoBehaviour
         }
 
         QuestData quest = questDict[questId];
-        if (quest == null)
-        {
-            Debug.LogError($"QuestData є null для: {questId}");
-            return;
-        }
-
         quest.ActivateQuest();
         currentQuest = quest;
-
         OnQuestActivated?.Invoke(quest);
     }
 
@@ -95,6 +83,9 @@ public class QuestManager : MonoBehaviour
 
         if (!string.IsNullOrEmpty(quest.nextQuestId))
             ActivateQuest(quest.nextQuestId);
+
+        // Автосейв після кожного виконаного квесту
+        SaveSystem.instance?.Save();
     }
 
     public void IncrementQuestCounter(string questId)
@@ -109,9 +100,12 @@ public class QuestManager : MonoBehaviour
         quest.IncrementCounter();
 
         if (quest.currentCount >= quest.maxCount)
-            CompleteQuest(questId);
+            CompleteQuest(questId); // CompleteQuest вже зберігає
         else
+        {
             OnQuestActivated?.Invoke(quest);
+            SaveSystem.instance?.Save(); // зберігаємо і проміжний прогрес лічильника
+        }
     }
 
     public void TryCompleteSearchHuts()
@@ -123,28 +117,49 @@ public class QuestManager : MonoBehaviour
             CompleteQuest("quest_search_huts");
     }
 
+    // ── Silent — тільки для завантаження, БЕЗ подій і БЕЗ автосейву ─────────
+
+    public void ActivateQuestSilent(string questId)
+    {
+        if (!questDict.ContainsKey(questId))
+        {
+            Debug.LogError($"Квест не знайдено (silent): {questId}");
+            return;
+        }
+
+        QuestData quest = questDict[questId];
+        quest.ActivateQuest();
+        currentQuest = quest;
+    }
+
+    public void CompleteQuestSilent(string questId)
+    {
+        if (!questDict.ContainsKey(questId))
+        {
+            Debug.LogError($"Квест не знайдено (silent): {questId}");
+            return;
+        }
+
+        questDict[questId].CompleteQuest();
+    }
+
+    // ── Утиліти ──────────────────────────────────────────────────────────────
+
     public QuestData GetQuest(string questId)
     {
-        if (questDict.ContainsKey(questId))
-            return questDict[questId];
-        return null;
+        questDict.TryGetValue(questId, out QuestData q);
+        return q;
     }
 
-    public bool IsQuestActive(string questId)
-    {
-        if (questDict.ContainsKey(questId))
-            return questDict[questId].isActive;
-        return false;
-    }
+    public bool IsQuestActive(string questId) =>
+        questDict.TryGetValue(questId, out QuestData q) && q.isActive;
 
-    public bool IsQuestCompleted(string questId)
-    {
-        if (questDict.ContainsKey(questId))
-            return questDict[questId].isCompleted;
-        return false;
-    }
+    public bool IsQuestCompleted(string questId) =>
+        questDict.TryGetValue(questId, out QuestData q) && q.isCompleted;
 
     public List<QuestData> GetAllQuests() => new List<QuestData>(questDict.Values);
+
+    public QuestData GetCurrentQuest() => currentQuest;
 
     public void PrintAllQuests()
     {

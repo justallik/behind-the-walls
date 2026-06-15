@@ -90,17 +90,16 @@ public class DiaryUI : MonoBehaviour
                 UpdatePageContent(entry, pageIndex);
                 entry.isNew = false;
 
-                if (displayIndex >= 0 && displayIndex < allMarkerButtons.Length)
+                // Знімаємо NEW з відповідної закладки
+                int markerIndex = entry.id <= 10 ? entry.id - 1 : 9;
+                if (markerIndex >= 0 && markerIndex < allMarkerButtons.Length)
                 {
-                    GameObject marker = allMarkerButtons[displayIndex];
+                    GameObject marker = allMarkerButtons[markerIndex];
                     if (marker != null)
                     {
                         TextMeshProUGUI markerText = marker.GetComponentInChildren<TextMeshProUGUI>();
                         if (markerText != null)
-                        {
-                            markerText.text = entry.id.ToString();
-                            markerText.color = Color.white;
-                        }
+                            markerText.text = "";
                     }
                 }
 
@@ -112,6 +111,16 @@ public class DiaryUI : MonoBehaviour
                 Debug.LogWarning($"Сторінка під індексом {pageIndex} порожня в інспекторі");
             }
         }
+    }
+
+    public void ShowEntryById(int entryId)
+    {
+        if (DiaryManager.instance == null) return;
+
+        var sortedEntries = DiaryManager.instance.GetSortedEntries();
+        int index = sortedEntries.FindIndex(e => e.id == entryId);
+        if (index >= 0)
+            ShowEntry(index);
     }
 
     private void RefreshNoteSlots()
@@ -154,6 +163,7 @@ public class DiaryUI : MonoBehaviour
 
         var sortedEntries = DiaryManager.instance.GetSortedEntries();
 
+        // Ховаємо всі закладки
         for (int i = 0; i < allMarkerButtons.Length; i++)
         {
             if (allMarkerButtons[i] != null)
@@ -165,23 +175,30 @@ public class DiaryUI : MonoBehaviour
             if (i >= allMarkerButtons.Length) break;
 
             DiaryEntry entry = sortedEntries[i];
-            GameObject marker = allMarkerButtons[i];
+
+            // Закладка відповідає ID сторінки
+            int markerIndex = entry.id <= 10 ? entry.id - 1 : 9;
+
+            if (markerIndex < 0 || markerIndex >= allMarkerButtons.Length) continue;
+
+            GameObject marker = allMarkerButtons[markerIndex];
+            if (marker == null) continue;
 
             marker.SetActive(true);
 
             TextMeshProUGUI markerText = marker.GetComponentInChildren<TextMeshProUGUI>();
             if (markerText != null)
             {
-                markerText.text = entry.isNew ? "NEW" : entry.id.ToString();
-                markerText.color = entry.isNew ? new Color(1f, 0.5f, 0f) : Color.white;
+                markerText.text = entry.isNew ? "*" : "";
+                markerText.color = entry.isNew ? new Color(1f, 1f, 1f) : Color.white;
             }
 
             Button btn = marker.GetComponent<Button>();
             if (btn != null)
             {
                 btn.onClick.RemoveAllListeners();
-                int indexToShow = i;
-                btn.onClick.AddListener(() => ShowEntry(indexToShow));
+                int entryId = entry.id;
+                btn.onClick.AddListener(() => ShowEntryById(entryId));
             }
         }
 

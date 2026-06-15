@@ -70,7 +70,7 @@ public class IntroController : MonoBehaviour
         if (hintPanel != null)
         {
             hintPanel.SetActive(true);
-            hintText.text = "[Space] — Прочитати записку";
+            hintText.text = "[Space] — Read note";
         }
         if (director != null) director.Pause();
         waitingForNoteRead = true;
@@ -140,7 +140,7 @@ public class IntroController : MonoBehaviour
     {
         noteIsOpen = true;
         if (notePanel != null) notePanel.SetActive(true);
-        if (hintText != null) hintText.text = "[Space] — Закрити";
+        if (hintText != null) hintText.text = "[Space] — Close note";
     }
 
     private void CloseNote()

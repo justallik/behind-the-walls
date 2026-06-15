@@ -2,6 +2,9 @@ using UnityEngine;
 
 public class InteractableItem : MonoBehaviour
 {
+    [Header("Save")]
+    public string uniqueId;
+
     [Header("Item Settings")]
     public ItemData itemData;
 
@@ -10,11 +13,24 @@ public class InteractableItem : MonoBehaviour
     public string questIdToActivate;
     public string questIdToIncrement;
 
+    [Header("Hint")]
+    [SerializeField] private string hintAfterPickup;
+    [SerializeField] private float hintDuration = 3f;
+
     [Header("Note")]
     public bool playCutsceneOnClose = false;
 
     private void Start()
     {
+        if (!string.IsNullOrEmpty(uniqueId) && SaveSystem.instance != null)
+        {
+            if (SaveSystem.instance.IsItemPickedUp(uniqueId))
+            {
+                gameObject.SetActive(false);
+                return;
+            }
+        }
+
         if (itemData == null) return;
         if (itemData.itemType != ItemData.ItemType.Note) return;
 
@@ -39,6 +55,17 @@ public class InteractableItem : MonoBehaviour
         if (gameObject != null) gameObject.SetActive(true);
     }
 
+    private void RegisterAndDestroy()
+    {
+        if (!string.IsNullOrEmpty(uniqueId) && SaveSystem.instance != null)
+            SaveSystem.instance.RegisterPickedItem(uniqueId);
+
+        if (!string.IsNullOrEmpty(hintAfterPickup))
+            HintManager.instance?.ShowHint(hintAfterPickup, hintDuration);
+
+        Destroy(gameObject);
+    }
+
     public void Interact()
     {
         if (itemData == null) return;
@@ -51,7 +78,7 @@ public class InteractableItem : MonoBehaviour
                 Debug.LogError("DiaryManager не знайдено");
 
             TryUpdateQuest();
-            Destroy(gameObject);
+            RegisterAndDestroy();
             return;
         }
 
@@ -63,7 +90,7 @@ public class InteractableItem : MonoBehaviour
                 Debug.LogError("InventorySystem не знайдено");
 
             TryUpdateQuest();
-            Destroy(gameObject);
+            RegisterAndDestroy();
             return;
         }
 
@@ -89,7 +116,7 @@ public class InteractableItem : MonoBehaviour
                 TryUpdateQuest();
             }
 
-            Destroy(gameObject);
+            RegisterAndDestroy();
             return;
         }
 
@@ -97,7 +124,7 @@ public class InteractableItem : MonoBehaviour
         if (success)
         {
             TryUpdateQuest();
-            Destroy(gameObject);
+            RegisterAndDestroy();
         }
     }
 

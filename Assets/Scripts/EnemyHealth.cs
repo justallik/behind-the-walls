@@ -11,6 +11,10 @@ public class EnemyHealth : MonoBehaviour
     [Header("Death")]
     public int diaryEntryOnDeath = 11;
 
+    [Header("Death Hint")]
+    [SerializeField] private string deathHint;
+    [SerializeField] private float deathHintDuration = 4f;
+
     [Header("Quests")]
     [SerializeField] private string questToCompleteOnDeath = "quest_survive";
     [SerializeField] private string questToActivateOnDeath = "quest_find_water";
@@ -53,6 +57,9 @@ public class EnemyHealth : MonoBehaviour
 
         if (DiaryManager.instance != null && diaryEntryOnDeath > 0)
             DiaryManager.instance.AddEntryByID(diaryEntryOnDeath);
+
+        if (!string.IsNullOrEmpty(deathHint))
+            HintManager.instance?.ShowHint(deathHint, deathHintDuration);
 
         if (QuestManager.instance != null)
         {

@@ -4,6 +4,9 @@ using System.Collections;
 
 public class HintTrigger : MonoBehaviour
 {
+    [Header("Quest Requirement")]
+    [SerializeField] private string requiredQuestCompleted;
+
     [Header("Hint Text")]
     [TextArea(2, 6)]
     [SerializeField] private string hintText = "[W,A,S,D] — Рухатись";
@@ -28,11 +31,19 @@ public class HintTrigger : MonoBehaviour
         StartCoroutine(CheckPlayerInsideOnStart());
     }
 
+    private bool IsRequiredQuestDone()
+    {
+        if (string.IsNullOrEmpty(requiredQuestCompleted)) return true;
+        if (QuestManager.instance == null) return false;
+        return QuestManager.instance.IsQuestCompleted(requiredQuestCompleted);
+    }
+
     private IEnumerator CheckPlayerInsideOnStart()
     {
         yield return new WaitForSeconds(startDelay);
 
         if (hasTriggered) yield break;
+        if (!IsRequiredQuestDone()) yield break;
 
         GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
         if (playerObj == null) yield break;
@@ -52,6 +63,7 @@ public class HintTrigger : MonoBehaviour
     {
         if (!other.CompareTag("Player")) return;
         if (triggerOnce && hasTriggered) return;
+        if (!IsRequiredQuestDone()) return;
 
         hasTriggered = true;
         ShowHint();
@@ -61,7 +73,6 @@ public class HintTrigger : MonoBehaviour
     {
         if (!other.CompareTag("Player")) return;
         if (!hideOnExit) return;
-
         HideHint();
     }
 

@@ -7,6 +7,8 @@ public class PlayerHealth : MonoBehaviour
     [Header("Stats")]
     public float maxHealth = 100f;
     public float currentHealth;
+    public float startHealth = 45f;
+
 
     [Header("Respawn")]
     public int currentLives = 10;
@@ -27,7 +29,7 @@ public class PlayerHealth : MonoBehaviour
 
     private void Start()
     {
-        currentHealth = maxHealth;
+        currentHealth = Mathf.Clamp(startHealth, 0f, maxHealth);
         if (combatScript == null) combatScript = GetComponent<PlayerCombat>();
     }
 
@@ -86,6 +88,9 @@ public class PlayerHealth : MonoBehaviour
         else
         {
             Debug.Log("Гра закінчена — життів більше немає");
+
+            if (GameOverController.instance != null)
+                GameOverController.instance.ShowGameOver();
         }
     }
 

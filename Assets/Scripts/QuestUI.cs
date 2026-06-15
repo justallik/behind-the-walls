@@ -37,15 +37,6 @@ public class QuestUI : MonoBehaviour
             questPanel.SetActive(false);
     }
 
-    private void Update()
-    {
-        if (hasQuest && Keyboard.current != null && Keyboard.current.tabKey.wasPressedThisFrame)
-        {
-            if (isOpen) Close();
-            else Open();
-        }
-    }
-
     private void OnDestroy()
     {
         if (questManager != null)
@@ -55,11 +46,50 @@ public class QuestUI : MonoBehaviour
         }
     }
 
+    // Викликається з SaveSystem після завершення Load() —
+    // гарантовано після того як квести завантажені І HUDRoot активний
+    public void RefreshAfterLoad()
+    {
+        if (questManager == null) return;
+
+        // Беремо поточний квест — останній активований при завантаженні
+        QuestData current = questManager.GetCurrentQuest();
+        if (current != null && current.isActive && !current.isCompleted)
+        {
+            hasQuest = true;
+            if (questPanel != null) questPanel.SetActive(true);
+            if (questText != null) questText.text = current.GetFullObjective();
+            isOpen = true;
+            return;
+        }
+
+        // Fallback — якщо currentQuest чомусь null, шукаємо будь-який активний
+        foreach (QuestData quest in questManager.GetAllQuests())
+        {
+            if (quest.isActive && !quest.isCompleted)
+            {
+                hasQuest = true;
+                if (questPanel != null) questPanel.SetActive(true);
+                if (questText != null) questText.text = quest.GetFullObjective();
+                isOpen = true;
+                return;
+            }
+        }
+    }
+
+    private void Update()
+    {
+        if (hasQuest && Keyboard.current != null && Keyboard.current.tabKey.wasPressedThisFrame)
+        {
+            if (isOpen) Close();
+            else Open();
+        }
+    }
+
     private void OnQuestActivated(QuestData quest)
     {
         hasQuest = true;
 
-        // Скасовуємо закриття якщо воно було заплановане
         if (closeCoroutine != null)
         {
             StopCoroutine(closeCoroutine);
@@ -72,7 +102,6 @@ public class QuestUI : MonoBehaviour
         if (questText != null)
             questText.text = quest.GetFullObjective();
 
-        // Відкриваємо тільки якщо панель закрита
         if (!isOpen)
             Open();
     }
@@ -81,7 +110,6 @@ public class QuestUI : MonoBehaviour
     {
         hasQuest = false;
 
-        // Закриваємо з затримкою — якщо прийде новий квест то закриття скасується
         if (closeCoroutine != null)
             StopCoroutine(closeCoroutine);
 
